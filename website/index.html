@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Task Master</title>
+</head>
+<body>
+
+  <form action="/api/tasks" method="POST" id="addTaskForm">
+    Task:
+    <input type="text" name="taskname" id="taskname" placeholder="Todo item, e.g. 'go shopping'" autocomplete="off">
+  </form>
+
+  <hr>
+
+  <ul id="tasks">
+    <li><i>Loading tasks...</i></li>
+  </ul>
+
+  <script>
+    const addTaskForm = document.querySelector('#addTaskForm')
+    addTaskForm.addEventListener('submit', event => {
+      event.preventDefault();
+      addTask({
+        title: document.querySelector('#taskname').value,
+      });
+      addTaskForm.reset();
+    });
+
+    async function addTask(task) {
+      console.log('Creating: ', task)
+      const resp = await fetch('/api/tasks', {
+        method: 'POST',
+        body: JSON.stringify(task),
+      })
+      const created = await resp.json();
+      console.log("Created:", created);
+      await refreshTasks();
+    }
+    async function refreshTasks() {
+      const resp = await fetch('/api/tasks');
+      const tasks = await resp.json();
+      console.log('Tasks: ', tasks);
+      document.querySelector('#tasks').innerHTML =
+        tasks.map(t => `<li>
+          ${t.title}
+          ${t.history ? `(Completed most recently at ${t.history[0]})` : ""}
+          [<a href="#" onclick='doTask("${t.ID}")'>mark done</a>]
+          [<a href="#" onclick='delTask("${t.ID}")'>delete</a>]
+        </li>`).join('\n');
+    }
+    async function doTask(id) {
+      console.log('Completing task id: ', id)
+      const resp = await fetch(`/api/tasks/${id}`, {
+        method: 'DO',
+      })
+      const task = await resp.json();
+      console.log("Completed:", task);
+      await refreshTasks();
+    }
+    async function delTask(id) {
+      console.log('Deleting task id: ', id)
+      const resp = await fetch(`/api/tasks/${id}`, {
+        method: 'DELETE',
+      })
+      const task = await resp.json();
+      console.log("Deleted:", task);
+      await refreshTasks();
+    }
+
+    refreshTasks();
+  </script>
+</body>
+</html>

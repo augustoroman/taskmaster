@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package api;
+
+option go_package = "github.com/augustoroman/taskmaster/api";
+
+import "google/protobuf/timestamp.proto";
+import "validate/validate.proto";
+
+service TaskService {
+  rpc Create(CreateRequest) returns (CreateResponse) {}
+  rpc List(ListRequest) returns (ListResponse) {}
+  rpc Get(GetRequest) returns (GetResponse) {}
+  rpc Update(UpdateRequest) returns (UpdateResponse) {}
+  rpc Do(DoRequest) returns (DoResponse) {}
+  rpc Delete(DeleteRequest) returns (DeleteResponse) {}
+}
+
+message Task {
+  string id = 1;
+  // Title is the short (one-line) summary of the task to be done.
+  string title = 2;
+  // What even is this?
+  google.protobuf.Timestamp start = 3;
+  // history is the list of completed timestamps for this task, with the most
+  // recent first.
+  repeated google.protobuf.Timestamp history = 4;
+  bool deleted = 5;
+}
+
+message ListRequest {}
+
+message ListResponse {
+  repeated Task task = 1;
+}
+
+message GetRequest {
+  string id = 1  [(validate.rules).string.min_len = 1];
+}
+
+message GetResponse {
+  Task task = 1;
+}
+
+message CreateRequest {
+  Task task = 1 [(validate.rules).message.required = true];
+}
+message CreateResponse {
+  Task task = 1;
+}
+
+message UpdateRequest {
+  Task task = 1 [(validate.rules).message.required = true];
+}
+message UpdateResponse {
+  Task task = 1;
+}
+
+message DoRequest {
+  string id = 1  [(validate.rules).string.min_len = 1];
+}
+message DoResponse {
+  Task task = 1;
+}
+
+message DeleteRequest {
+  string id = 1  [(validate.rules).string.min_len = 1];
+}
+message DeleteResponse {}
+
+
+
