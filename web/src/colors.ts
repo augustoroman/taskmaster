@@ -1,8 +1,10 @@
-/** The pastel palette new tags get (same as the server's). */
-export const PALETTE = [
-  "#f8b4c0", "#fbc4a4", "#fcd89a", "#f3eaa0", "#d2eca4", "#b5e6b9",
-  "#a8e0d6", "#aed6f1", "#bcc6f5", "#d3bdf2", "#efb9e6", "#e3d3bd",
-];
+/** Google Docs' "light 1" row: the colors new tags get (same as the server's). */
+const LIGHT_1 = ["#cc4125", "#e06666", "#f6b26b", "#ffd966", "#93c47d", "#76a5af", "#6d9eeb", "#6fa8dc", "#8e7cc3", "#c27ba0"];
+/** Google Docs' "dark 1" row: the same hues, stronger. */
+const DARK_1 = ["#a61c00", "#cc0000", "#e69138", "#f1c232", "#6aa84f", "#45818e", "#3c78d8", "#3d85c6", "#674ea7", "#a64d79"];
+
+/** The picker's swatches, in rows. */
+export const PALETTE_ROWS = [LIGHT_1, DARK_1];
 
 const DARK = "#1d1d1b";
 const LIGHT = "#ffffff";

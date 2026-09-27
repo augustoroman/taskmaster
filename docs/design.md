@@ -268,8 +268,9 @@ An untagged task is therefore private to its creator.
   left with no tags become private to their creators again.
 - A user can hide a tag that was shared with them, as a personal filter. Hiding doesn't change
   access.
-- Tag colors are per person. A new tag gets a random pastel (avoiding colors the owner already
-  uses). Sharing gives the recipient the sharer's current color; after that, each person's
+- Tag colors are per person. A new tag gets a random color from Google Docs' "light 1" row
+  (avoiding colors the owner already uses); the picker offers that row and the darker one below it,
+  plus any custom color. Sharing gives the recipient the sharer's current color; after that, each person's
   recolors only affect what they see.
 
 ## 7. Data model (SQLite)

@@ -2,7 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { AccessLevel, api, type Share, type Tag } from "../api";
 import { ErrorBanner, toast, useRunner } from "../components/common";
 import { useSession } from "../session";
-import { PALETTE, tagStyle } from "../colors";
+import { PALETTE_ROWS, tagStyle } from "../colors";
 
 const LEVELS: [AccessLevel, string, string][] = [
   [AccessLevel.READ, "Can view", "See tasks and their history."],
@@ -127,16 +127,20 @@ function TagCard({ tag }: { tag: Tag }) {
       </div>
       {coloring && (
         <div class="color-picker">
-          {PALETTE.map((c) => (
-            <button
-              key={c}
-              class={`swatch ${c === tag.color ? "selected" : ""}`}
-              style={{ background: c }}
-              aria-label={`Color ${c}`}
-              aria-pressed={c === tag.color}
-              disabled={busy}
-              onClick={() => then(api.setTagColor({ id: tag.id, color: c }))}
-            />
+          {PALETTE_ROWS.map((row, i) => (
+            <div class="swatch-row" key={i}>
+              {row.map((c) => (
+                <button
+                  key={c}
+                  class={`swatch ${c === tag.color ? "selected" : ""}`}
+                  style={{ background: c }}
+                  aria-label={`Color ${c}`}
+                  aria-pressed={c === tag.color}
+                  disabled={busy}
+                  onClick={() => then(api.setTagColor({ id: tag.id, color: c }))}
+                />
+              ))}
+            </div>
           ))}
           <label class="check small custom-color">
             <input

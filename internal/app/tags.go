@@ -25,10 +25,10 @@ type ShareView struct {
 
 const maxTagName = 100
 
-// tagPalette is the pastel colors new tags get (also in migration 004).
+// tagPalette is the colors new tags get: Google Docs' "light 1" row (also in
+// migration 005 and web/src/colors.ts).
 var tagPalette = []string{
-	"#f8b4c0", "#fbc4a4", "#fcd89a", "#f3eaa0", "#d2eca4", "#b5e6b9",
-	"#a8e0d6", "#aed6f1", "#bcc6f5", "#d3bdf2", "#efb9e6", "#e3d3bd",
+	"#cc4125", "#e06666", "#f6b26b", "#ffd966", "#93c47d", "#76a5af", "#6d9eeb", "#6fa8dc", "#8e7cc3", "#c27ba0",
 }
 
 var colorRE = regexp.MustCompile(`^#[0-9a-f]{6}$`)
