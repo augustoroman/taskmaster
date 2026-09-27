@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -684,4 +685,56 @@ func TestCarryOver(t *testing.T) {
 	other.CarryOver = true
 	it := f.task(f.admin, other)
 	assert.False(t, it.CarryOver)
+}
+
+func TestTagColors(t *testing.T) {
+	f := newFixture(t)
+	colorOf := func(u *store.User, id string) string {
+		tags, err := f.svc.ListTags(f.ctx, u)
+		require.NoError(t, err)
+		for _, tag := range tags {
+			if tag.ID == id {
+				return tag.Color
+			}
+		}
+		return "not visible"
+	}
+
+	// New tags get distinct palette colors.
+	seen := map[string]bool{}
+	for i := 0; i < len(tagPalette); i++ {
+		tag, err := f.svc.CreateTag(f.ctx, f.admin, fmt.Sprint("tag", i), "")
+		require.NoError(t, err)
+		assert.Contains(t, tagPalette, tag.Color)
+		assert.False(t, seen[tag.Color], "reused %s while others were free", tag.Color)
+		seen[tag.Color] = true
+	}
+
+	house := f.tag(f.admin, "House")
+	require.NoError(t, f.svc.SetTagColor(f.ctx, f.admin, house, "#FF0000"))
+	assert.Equal(t, "#ff0000", colorOf(f.admin, house))
+
+	// Shared: the recipient starts with the sharer's color, before and after
+	// they have an account.
+	f.share(f.admin, house, "sam@example.com", store.LevelDo)
+	f.share(f.admin, house, "existing@example.com", store.LevelRead)
+	sam := f.login("sam@example.com")
+	assert.Equal(t, "#ff0000", colorOf(sam, house))
+
+	// Each person's color is their own.
+	require.NoError(t, f.svc.SetTagColor(f.ctx, sam, house, "#00aa00"))
+	require.NoError(t, f.svc.SetTagColor(f.ctx, f.admin, house, "#0000ff"))
+	assert.Equal(t, "#00aa00", colorOf(sam, house))
+	assert.Equal(t, "#0000ff", colorOf(f.admin, house))
+	existing := f.login("existing@example.com")
+	assert.Equal(t, "#ff0000", colorOf(existing, house), "kept the color it was shared with")
+
+	// Renaming without a color keeps it.
+	_, err := f.svc.UpdateTag(f.ctx, f.admin, house, "Home", "")
+	require.NoError(t, err)
+	assert.Equal(t, "#0000ff", colorOf(f.admin, house))
+
+	var invalidErr *InvalidError
+	assert.ErrorAs(t, f.svc.SetTagColor(f.ctx, sam, house, "red"), &invalidErr)
+	assert.ErrorIs(t, f.svc.SetTagColor(f.ctx, sam, f.tag(f.admin, "Mine"), "#123456"), ErrNotFound)
 }

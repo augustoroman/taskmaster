@@ -16,14 +16,16 @@ const (
 )
 
 type Tag struct {
-	ID        string
-	OwnerID   string
-	Name      string
+	ID      string
+	OwnerID string
+	Name    string
+	// Color is the owner's color for the tag, "#rrggbb".
 	Color     string
 	CreatedAt time.Time
 }
 
-// UserTag is a tag as one user sees it.
+// UserTag is a tag as one user sees it. Its Color is theirs: their own choice
+// if they made one, else the color it was shared with, else the owner's.
 type UserTag struct {
 	Tag
 	Level  Level
@@ -38,6 +40,8 @@ type Share struct {
 	Level     Level
 	CreatedBy string
 	CreatedAt time.Time
+	// Color is the sharer's color when shared: the recipient's starting color.
+	Color string
 }
 
 func (tx *Tx) InsertTag(t *Tag) error {
@@ -84,7 +88,10 @@ func (tx *Tx) TagLevel(userID, tagID string) (Level, error) {
 // UserTags lists the tags userID owns or has been shared.
 func (tx *Tx) UserTags(userID string) ([]UserTag, error) {
 	rows, err := tx.query(`
-		SELECT g.id, g.owner_id, g.name, g.color, g.created_at,
+		SELECT g.id, g.owner_id, g.name,
+		       CASE WHEN g.owner_id = ?1 THEN g.color
+		            ELSE COALESCE(NULLIF(p.color, ''), NULLIF(s.color, ''), g.color) END,
+		       g.created_at,
 		       CASE WHEN g.owner_id = ?1 THEN 3 ELSE s.level END,
 		       COALESCE(p.hidden, 0)
 		FROM tags g
@@ -109,6 +116,15 @@ func (tx *Tx) UserTags(userID string) ([]UserTag, error) {
 	return out, rows.Err()
 }
 
+// SetTagColor sets userID's own color for a tag they don't own. (Owners
+// change the tag's color with UpdateTag.)
+func (tx *Tx) SetTagColor(userID, tagID, color string) error {
+	_, err := tx.exec(`
+		INSERT INTO tag_prefs (user_id, tag_id, color) VALUES (?, ?, ?)
+		ON CONFLICT (user_id, tag_id) DO UPDATE SET color = excluded.color`, userID, tagID, color)
+	return err
+}
+
 func (tx *Tx) SetTagHidden(userID, tagID string, hidden bool) error {
 	_, err := tx.exec(`
 		INSERT INTO tag_prefs (user_id, tag_id, hidden) VALUES (?, ?, ?)
@@ -116,12 +132,12 @@ func (tx *Tx) SetTagHidden(userID, tagID string, hidden bool) error {
 	return err
 }
 
-const shareCols = `id, tag_id, email, COALESCE(user_id, ''), level, created_by, created_at`
+const shareCols = `id, tag_id, email, COALESCE(user_id, ''), level, created_by, created_at, color`
 
 func scanShare(row interface{ Scan(...any) error }) (*Share, error) {
 	var s Share
 	var created string
-	if err := row.Scan(&s.ID, &s.TagID, &s.Email, &s.UserID, &s.Level, &s.CreatedBy, &created); err != nil {
+	if err := row.Scan(&s.ID, &s.TagID, &s.Email, &s.UserID, &s.Level, &s.CreatedBy, &created, &s.Color); err != nil {
 		return nil, notFound(err)
 	}
 	s.CreatedAt = parseTS(created)
@@ -158,8 +174,8 @@ func (tx *Tx) InsertShare(s *Share) error {
 		s.ID = NewID()
 	}
 	s.Email = NormalizeEmail(s.Email)
-	_, err := tx.exec(`INSERT INTO tag_shares (id, tag_id, email, user_id, level, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		s.ID, s.TagID, s.Email, nullable(s.UserID), s.Level, s.CreatedBy, ts(s.CreatedAt))
+	_, err := tx.exec(`INSERT INTO tag_shares (id, tag_id, email, user_id, level, created_by, created_at, color) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		s.ID, s.TagID, s.Email, nullable(s.UserID), s.Level, s.CreatedBy, ts(s.CreatedAt), s.Color)
 	return err
 }
 

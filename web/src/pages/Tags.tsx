@@ -2,6 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import { AccessLevel, api, type Share, type Tag } from "../api";
 import { ErrorBanner, toast, useRunner } from "../components/common";
 import { useSession } from "../session";
+import { PALETTE, tagStyle } from "../colors";
 
 const LEVELS: [AccessLevel, string, string][] = [
   [AccessLevel.READ, "Can view", "See tasks and their history."],
@@ -61,6 +62,7 @@ function TagCard({ tag }: { tag: Tag }) {
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(tag.name);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [coloring, setColoring] = useState(false);
   const { busy, error, setError, run } = useRunner();
 
   async function then(p: Promise<unknown>, msg?: string) {
@@ -92,7 +94,9 @@ function TagCard({ tag }: { tag: Tag }) {
           </form>
         ) : (
           <h3>
-            {tag.name}
+            <span class="tag tag-lg" style={tagStyle(tag.color)}>
+              {tag.name}
+            </span>
             {!owner && <span class="muted small"> · {tag.owner?.name || tag.owner?.email} · {levelName(tag.myAccess)}</span>}
           </h3>
         )}
@@ -107,6 +111,9 @@ function TagCard({ tag }: { tag: Tag }) {
             {open ? "Hide sharing" : "Sharing…"}
           </button>
         )}
+        <button class="link" onClick={() => setColoring(!coloring)}>
+          Color…
+        </button>
         {owner && !renaming && (
           <button class="link" onClick={() => setRenaming(true)}>
             Rename
@@ -118,6 +125,30 @@ function TagCard({ tag }: { tag: Tag }) {
           </button>
         )}
       </div>
+      {coloring && (
+        <div class="color-picker">
+          {PALETTE.map((c) => (
+            <button
+              key={c}
+              class={`swatch ${c === tag.color ? "selected" : ""}`}
+              style={{ background: c }}
+              aria-label={`Color ${c}`}
+              aria-pressed={c === tag.color}
+              disabled={busy}
+              onClick={() => then(api.setTagColor({ id: tag.id, color: c }))}
+            />
+          ))}
+          <label class="check small custom-color">
+            <input
+              type="color"
+              value={tag.color || "#cccccc"}
+              onChange={(e) => then(api.setTagColor({ id: tag.id, color: e.currentTarget.value }))}
+            />
+            Custom
+          </label>
+          {!owner && <span class="muted small">Only changes your color, not anyone else's.</span>}
+        </div>
+      )}
       {confirmDelete && (
         <div class="inline-form">
           <p>

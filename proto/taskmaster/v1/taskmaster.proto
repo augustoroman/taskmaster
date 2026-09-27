@@ -17,6 +17,7 @@ service TaskmasterService {
   rpc UpdateTag(UpdateTagRequest) returns (UpdateTagResponse) {}
   rpc DeleteTag(DeleteTagRequest) returns (DeleteTagResponse) {}
   rpc SetTagHidden(SetTagHiddenRequest) returns (SetTagHiddenResponse) {}
+  rpc SetTagColor(SetTagColorRequest) returns (SetTagColorResponse) {}
 
   rpc ListShares(ListSharesRequest) returns (ListSharesResponse) {}
   rpc ShareTag(ShareTagRequest) returns (ShareTagResponse) {}
@@ -88,6 +89,7 @@ enum AccessLevel {
 message Tag {
   string id = 1;
   string name = 2;
+  // Your color for the tag, "#rrggbb" (see SetTagColor).
   string color = 3;
   User owner = 4;
   AccessLevel my_access = 5;
@@ -102,6 +104,7 @@ message ListTagsResponse {
 
 message CreateTagRequest {
   string name = 1;
+  // "#rrggbb"; empty picks a pastel color.
   string color = 2;
 }
 message CreateTagResponse {
@@ -112,6 +115,7 @@ message CreateTagResponse {
 message UpdateTagRequest {
   string id = 1;
   string name = 2;
+  // Empty leaves the color alone.
   string color = 3;
 }
 message UpdateTagResponse {
@@ -129,6 +133,14 @@ message SetTagHiddenRequest {
   bool hidden = 2;
 }
 message SetTagHiddenResponse {}
+
+// Sets your color for a tag. For the tag's owner this is the tag's color,
+// which new shares start with; for others it's theirs alone.
+message SetTagColorRequest {
+  string id = 1;
+  string color = 2;
+}
+message SetTagColorResponse {}
 
 message Share {
   string id = 1;

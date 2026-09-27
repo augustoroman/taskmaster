@@ -1,5 +1,6 @@
 import { useState } from "preact/hooks";
 import { useSession } from "../session";
+import { tagStyle } from "../colors";
 
 function load(key: string): string[] {
   try {
@@ -38,6 +39,7 @@ export function TagFilter({ filter }: { filter: ReturnType<typeof useTagFilter> 
         <button
           key={t.id}
           class={`tag ${filter.selected.includes(t.id) ? "selected" : ""}`}
+          style={tagStyle(t.color)}
           aria-pressed={filter.selected.includes(t.id)}
           onClick={() => filter.toggle(t.id)}
         >

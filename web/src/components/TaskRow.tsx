@@ -3,6 +3,7 @@ import { daysBetween, formatDate, relativeDue, relativePast } from "../dates";
 import { href } from "../router";
 import { describeSchedule } from "../schedule";
 import { useSession } from "../session";
+import { tagStyle } from "../colors";
 import { activeChecklist, canDo, slotTitle, toast, undoAction, useRunner } from "./common";
 
 export function TagChips({ ids }: { ids: string[] }) {
@@ -12,7 +13,7 @@ export function TagChips({ ids }: { ids: string[] }) {
   return (
     <span class="tags">
       {tags.map((t) => (
-        <span class="tag" key={t.id} style={t.color ? { borderColor: t.color } : undefined}>
+        <span class="tag" key={t.id} style={tagStyle(t.color)}>
           {t.name}
         </span>
       ))}

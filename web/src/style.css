@@ -336,17 +336,52 @@ form.inline input[type="email"] {
 
 .tag {
   font-size: 0.75rem;
-  padding: 0.05rem 0.45rem;
+  padding: 0.05rem 0.5rem;
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--muted);
   background: none;
+  font-weight: 500;
+}
+
+.tag.tag-lg {
+  font-size: 0.9rem;
+  padding: 0.1rem 0.6rem;
 }
 
 .tag button.link {
   font-size: 0.7rem;
   padding: 0 0 0 0.25rem;
-  color: var(--muted);
+  color: inherit;
+  opacity: 0.7;
+}
+
+.color-picker {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.5rem 0;
+}
+
+.swatch {
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.swatch.selected {
+  border-color: var(--text);
+}
+
+.custom-color input[type="color"] {
+  width: 2rem;
+  height: 1.75rem;
+  padding: 0;
+  border: none;
+  background: none;
 }
 
 .tag-filter {
@@ -361,10 +396,12 @@ form.inline input[type="email"] {
   padding: 0.15rem 0.6rem;
 }
 
+.tag-filter .tag:not(.selected) {
+  opacity: 0.55;
+}
+
 .tag-filter .tag.selected {
-  background: var(--accent-soft);
-  border-color: var(--accent);
-  color: var(--text);
+  box-shadow: 0 0 0 2px var(--text);
 }
 
 select.add-tag {

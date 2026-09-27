@@ -169,6 +169,10 @@ func (h *Handler) SetTagHidden(ctx context.Context, req *connect.Request[pb.SetT
 	return respond(&pb.SetTagHiddenResponse{}, h.svc.SetTagHidden(ctx, user(ctx), req.Msg.Id, req.Msg.Hidden))
 }
 
+func (h *Handler) SetTagColor(ctx context.Context, req *connect.Request[pb.SetTagColorRequest]) (*connect.Response[pb.SetTagColorResponse], error) {
+	return respond(&pb.SetTagColorResponse{}, h.svc.SetTagColor(ctx, user(ctx), req.Msg.Id, req.Msg.Color))
+}
+
 // ---- Sharing ----
 
 func (h *Handler) ListShares(ctx context.Context, req *connect.Request[pb.ListSharesRequest]) (*connect.Response[pb.ListSharesResponse], error) {

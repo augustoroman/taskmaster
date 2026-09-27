@@ -3,7 +3,10 @@ package app
 import (
 	"context"
 	"errors"
+	"math/rand/v2"
 	"net/mail"
+	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/augustoroman/taskmaster/internal/store"
@@ -21,6 +24,36 @@ type ShareView struct {
 }
 
 const maxTagName = 100
+
+// tagPalette is the pastel colors new tags get (also in migration 004).
+var tagPalette = []string{
+	"#f8b4c0", "#fbc4a4", "#fcd89a", "#f3eaa0", "#d2eca4", "#b5e6b9",
+	"#a8e0d6", "#aed6f1", "#bcc6f5", "#d3bdf2", "#efb9e6", "#e3d3bd",
+}
+
+var colorRE = regexp.MustCompile(`^#[0-9a-f]{6}$`)
+
+func cleanColor(color string) (string, error) {
+	color = strings.ToLower(strings.TrimSpace(color))
+	if !colorRE.MatchString(color) {
+		return "", invalid("color must look like #a1b2c3")
+	}
+	return color, nil
+}
+
+// pickColor returns a random palette color, preferring ones not in use.
+func pickColor(inUse []string) string {
+	var unused []string
+	for _, c := range tagPalette {
+		if !slices.Contains(inUse, c) {
+			unused = append(unused, c)
+		}
+	}
+	if len(unused) == 0 {
+		unused = tagPalette
+	}
+	return unused[rand.IntN(len(unused))]
+}
 
 func (s *Service) requireTagLevel(tx *store.Tx, u *store.User, tagID string, min store.Level) error {
 	level, err := tx.TagLevel(u.ID, tagID)
@@ -92,13 +125,30 @@ func duplicateName(err error, name string) error {
 	return err
 }
 
+// CreateTag creates a tag. An empty color picks a pastel one.
 func (s *Service) CreateTag(ctx context.Context, u *store.User, name, color string) (*TagView, error) {
 	name, err := cleanTagName(name)
 	if err != nil {
 		return nil, err
 	}
+	if color != "" {
+		if color, err = cleanColor(color); err != nil {
+			return nil, err
+		}
+	}
 	tag := &store.Tag{OwnerID: u.ID, Name: name, Color: color, CreatedAt: s.now()}
 	err = s.db.Tx(ctx, func(tx *store.Tx) error {
+		if tag.Color == "" {
+			tags, err := tx.UserTags(u.ID)
+			if err != nil {
+				return err
+			}
+			var inUse []string
+			for _, t := range tags {
+				inUse = append(inUse, t.Color)
+			}
+			tag.Color = pickColor(inUse)
+		}
 		return duplicateName(tx.InsertTag(tag), name)
 	})
 	if err != nil {
@@ -107,11 +157,16 @@ func (s *Service) CreateTag(ctx context.Context, u *store.User, name, color stri
 	return &TagView{store.UserTag{Tag: *tag, Level: store.LevelFull}, u}, nil
 }
 
-// UpdateTag renames or recolors a tag. Owner only.
+// UpdateTag renames a tag, and recolors it if color is set. Owner only.
 func (s *Service) UpdateTag(ctx context.Context, u *store.User, id, name, color string) (*TagView, error) {
 	name, err := cleanTagName(name)
 	if err != nil {
 		return nil, err
+	}
+	if color != "" {
+		if color, err = cleanColor(color); err != nil {
+			return nil, err
+		}
 	}
 	var view *TagView
 	err = s.db.Tx(ctx, func(tx *store.Tx) error {
@@ -119,7 +174,10 @@ func (s *Service) UpdateTag(ctx context.Context, u *store.User, id, name, color 
 		if err != nil {
 			return err
 		}
-		tag.Name, tag.Color = name, color
+		tag.Name = name
+		if color != "" {
+			tag.Color = color
+		}
 		if err := duplicateName(tx.UpdateTag(tag), name); err != nil {
 			return err
 		}
@@ -136,6 +194,29 @@ func (s *Service) DeleteTag(ctx context.Context, u *store.User, id string) error
 			return err
 		}
 		return tx.DeleteTag(id)
+	})
+}
+
+// SetTagColor sets u's color for a tag. For the owner that's the tag's color
+// (which new shares start with); for anyone else it's just theirs.
+func (s *Service) SetTagColor(ctx context.Context, u *store.User, id, color string) error {
+	color, err := cleanColor(color)
+	if err != nil {
+		return err
+	}
+	return s.db.Tx(ctx, func(tx *store.Tx) error {
+		if err := s.requireTagLevel(tx, u, id, store.LevelRead); err != nil {
+			return err
+		}
+		tag, err := tx.GetTag(id)
+		if err != nil {
+			return err
+		}
+		if tag.OwnerID == u.ID {
+			tag.Color = color
+			return tx.UpdateTag(tag)
+		}
+		return tx.SetTagColor(u.ID, id, color)
 	})
 }
 
@@ -225,7 +306,12 @@ func (s *Service) ShareTag(ctx context.Context, u *store.User, tagID, email stri
 				return err
 			}
 		case errors.Is(err, store.ErrNotFound):
-			share = &store.Share{TagID: tagID, Email: email, Level: level, CreatedBy: u.ID, CreatedAt: s.now()}
+			// The recipient starts with the sharer's color.
+			color, err := s.userTagColor(tx, u, tagID)
+			if err != nil {
+				return err
+			}
+			share = &store.Share{TagID: tagID, Email: email, Level: level, CreatedBy: u.ID, CreatedAt: s.now(), Color: color}
 			if invitee != nil {
 				share.UserID = invitee.ID
 			}
@@ -243,6 +329,20 @@ func (s *Service) ShareTag(ctx context.Context, u *store.User, tagID, email stri
 		return nil
 	})
 	return view, err
+}
+
+// userTagColor is the color u sees for a tag.
+func (s *Service) userTagColor(tx *store.Tx, u *store.User, tagID string) (string, error) {
+	tags, err := tx.UserTags(u.ID)
+	if err != nil {
+		return "", err
+	}
+	for _, t := range tags {
+		if t.ID == tagID {
+			return t.Color, nil
+		}
+	}
+	return "", ErrNotFound
 }
 
 func (s *Service) UpdateShare(ctx context.Context, u *store.User, id string, level store.Level) (*ShareView, error) {

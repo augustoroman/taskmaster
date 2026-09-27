@@ -7,6 +7,7 @@ import { assignableTags, useSession } from "../session";
 import { activeChecklist, activeSlots, canDo, canEdit, ErrorBanner, Markdown, slotTitle, toast, undoAction, useRunner } from "../components/common";
 import { History } from "../components/History";
 import { TagChips } from "../components/TaskRow";
+import { tagStyle } from "../colors";
 
 type Form = "" | "done" | "note" | "defer" | "pause" | "delete";
 
@@ -95,7 +96,7 @@ function Header({ task, onChanged }: { task: Task; onChanged: (t: Task) => void 
         {canEdit(task) ? (
           <>
             {task.tagIds.map((tid) => (
-              <span class="tag" key={tid}>
+              <span class="tag" key={tid} style={tagStyle(session.tagsById.get(tid)?.color ?? "")}>
                 {session.tagsById.get(tid)?.name ?? "?"}
                 <button class="link" aria-label="Remove tag" onClick={() => removeTag(tid)}>
                   ✕

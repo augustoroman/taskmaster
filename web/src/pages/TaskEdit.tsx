@@ -8,6 +8,7 @@ import { today } from "../dates";
 import { href, navigate } from "../router";
 import { ruleToRRule } from "../schedule";
 import { assignableTags, useSession } from "../session";
+import { tagStyle } from "../colors";
 
 interface Draft extends ScheduleDraft {
   title: string;
@@ -209,7 +210,9 @@ export function TaskEdit({ id }: { id?: string }) {
                     set({ tagIds: e.currentTarget.checked ? [...draft.tagIds, t.id] : draft.tagIds.filter((x) => x !== t.id) })
                   }
                 />
-                {t.name}
+                <span class="tag" style={tagStyle(t.color)}>
+                  {t.name}
+                </span>
               </label>
             ))}
           </div>

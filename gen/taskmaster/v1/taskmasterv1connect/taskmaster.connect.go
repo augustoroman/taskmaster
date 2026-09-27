@@ -53,6 +53,9 @@ const (
 	// TaskmasterServiceSetTagHiddenProcedure is the fully-qualified name of the TaskmasterService's
 	// SetTagHidden RPC.
 	TaskmasterServiceSetTagHiddenProcedure = "/taskmaster.v1.TaskmasterService/SetTagHidden"
+	// TaskmasterServiceSetTagColorProcedure is the fully-qualified name of the TaskmasterService's
+	// SetTagColor RPC.
+	TaskmasterServiceSetTagColorProcedure = "/taskmaster.v1.TaskmasterService/SetTagColor"
 	// TaskmasterServiceListSharesProcedure is the fully-qualified name of the TaskmasterService's
 	// ListShares RPC.
 	TaskmasterServiceListSharesProcedure = "/taskmaster.v1.TaskmasterService/ListShares"
@@ -144,6 +147,7 @@ type TaskmasterServiceClient interface {
 	UpdateTag(context.Context, *connect.Request[v1.UpdateTagRequest]) (*connect.Response[v1.UpdateTagResponse], error)
 	DeleteTag(context.Context, *connect.Request[v1.DeleteTagRequest]) (*connect.Response[v1.DeleteTagResponse], error)
 	SetTagHidden(context.Context, *connect.Request[v1.SetTagHiddenRequest]) (*connect.Response[v1.SetTagHiddenResponse], error)
+	SetTagColor(context.Context, *connect.Request[v1.SetTagColorRequest]) (*connect.Response[v1.SetTagColorResponse], error)
 	ListShares(context.Context, *connect.Request[v1.ListSharesRequest]) (*connect.Response[v1.ListSharesResponse], error)
 	ShareTag(context.Context, *connect.Request[v1.ShareTagRequest]) (*connect.Response[v1.ShareTagResponse], error)
 	UpdateShare(context.Context, *connect.Request[v1.UpdateShareRequest]) (*connect.Response[v1.UpdateShareResponse], error)
@@ -225,6 +229,12 @@ func NewTaskmasterServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			httpClient,
 			baseURL+TaskmasterServiceSetTagHiddenProcedure,
 			connect.WithSchema(taskmasterServiceMethods.ByName("SetTagHidden")),
+			connect.WithClientOptions(opts...),
+		),
+		setTagColor: connect.NewClient[v1.SetTagColorRequest, v1.SetTagColorResponse](
+			httpClient,
+			baseURL+TaskmasterServiceSetTagColorProcedure,
+			connect.WithSchema(taskmasterServiceMethods.ByName("SetTagColor")),
 			connect.WithClientOptions(opts...),
 		),
 		listShares: connect.NewClient[v1.ListSharesRequest, v1.ListSharesResponse](
@@ -407,6 +417,7 @@ type taskmasterServiceClient struct {
 	updateTag     *connect.Client[v1.UpdateTagRequest, v1.UpdateTagResponse]
 	deleteTag     *connect.Client[v1.DeleteTagRequest, v1.DeleteTagResponse]
 	setTagHidden  *connect.Client[v1.SetTagHiddenRequest, v1.SetTagHiddenResponse]
+	setTagColor   *connect.Client[v1.SetTagColorRequest, v1.SetTagColorResponse]
 	listShares    *connect.Client[v1.ListSharesRequest, v1.ListSharesResponse]
 	shareTag      *connect.Client[v1.ShareTagRequest, v1.ShareTagResponse]
 	updateShare   *connect.Client[v1.UpdateShareRequest, v1.UpdateShareResponse]
@@ -470,6 +481,11 @@ func (c *taskmasterServiceClient) DeleteTag(ctx context.Context, req *connect.Re
 // SetTagHidden calls taskmaster.v1.TaskmasterService.SetTagHidden.
 func (c *taskmasterServiceClient) SetTagHidden(ctx context.Context, req *connect.Request[v1.SetTagHiddenRequest]) (*connect.Response[v1.SetTagHiddenResponse], error) {
 	return c.setTagHidden.CallUnary(ctx, req)
+}
+
+// SetTagColor calls taskmaster.v1.TaskmasterService.SetTagColor.
+func (c *taskmasterServiceClient) SetTagColor(ctx context.Context, req *connect.Request[v1.SetTagColorRequest]) (*connect.Response[v1.SetTagColorResponse], error) {
+	return c.setTagColor.CallUnary(ctx, req)
 }
 
 // ListShares calls taskmaster.v1.TaskmasterService.ListShares.
@@ -621,6 +637,7 @@ type TaskmasterServiceHandler interface {
 	UpdateTag(context.Context, *connect.Request[v1.UpdateTagRequest]) (*connect.Response[v1.UpdateTagResponse], error)
 	DeleteTag(context.Context, *connect.Request[v1.DeleteTagRequest]) (*connect.Response[v1.DeleteTagResponse], error)
 	SetTagHidden(context.Context, *connect.Request[v1.SetTagHiddenRequest]) (*connect.Response[v1.SetTagHiddenResponse], error)
+	SetTagColor(context.Context, *connect.Request[v1.SetTagColorRequest]) (*connect.Response[v1.SetTagColorResponse], error)
 	ListShares(context.Context, *connect.Request[v1.ListSharesRequest]) (*connect.Response[v1.ListSharesResponse], error)
 	ShareTag(context.Context, *connect.Request[v1.ShareTagRequest]) (*connect.Response[v1.ShareTagResponse], error)
 	UpdateShare(context.Context, *connect.Request[v1.UpdateShareRequest]) (*connect.Response[v1.UpdateShareResponse], error)
@@ -698,6 +715,12 @@ func NewTaskmasterServiceHandler(svc TaskmasterServiceHandler, opts ...connect.H
 		TaskmasterServiceSetTagHiddenProcedure,
 		svc.SetTagHidden,
 		connect.WithSchema(taskmasterServiceMethods.ByName("SetTagHidden")),
+		connect.WithHandlerOptions(opts...),
+	)
+	taskmasterServiceSetTagColorHandler := connect.NewUnaryHandler(
+		TaskmasterServiceSetTagColorProcedure,
+		svc.SetTagColor,
+		connect.WithSchema(taskmasterServiceMethods.ByName("SetTagColor")),
 		connect.WithHandlerOptions(opts...),
 	)
 	taskmasterServiceListSharesHandler := connect.NewUnaryHandler(
@@ -884,6 +907,8 @@ func NewTaskmasterServiceHandler(svc TaskmasterServiceHandler, opts ...connect.H
 			taskmasterServiceDeleteTagHandler.ServeHTTP(w, r)
 		case TaskmasterServiceSetTagHiddenProcedure:
 			taskmasterServiceSetTagHiddenHandler.ServeHTTP(w, r)
+		case TaskmasterServiceSetTagColorProcedure:
+			taskmasterServiceSetTagColorHandler.ServeHTTP(w, r)
 		case TaskmasterServiceListSharesProcedure:
 			taskmasterServiceListSharesHandler.ServeHTTP(w, r)
 		case TaskmasterServiceShareTagProcedure:
@@ -975,6 +1000,10 @@ func (UnimplementedTaskmasterServiceHandler) DeleteTag(context.Context, *connect
 
 func (UnimplementedTaskmasterServiceHandler) SetTagHidden(context.Context, *connect.Request[v1.SetTagHiddenRequest]) (*connect.Response[v1.SetTagHiddenResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("taskmaster.v1.TaskmasterService.SetTagHidden is not implemented"))
+}
+
+func (UnimplementedTaskmasterServiceHandler) SetTagColor(context.Context, *connect.Request[v1.SetTagColorRequest]) (*connect.Response[v1.SetTagColorResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("taskmaster.v1.TaskmasterService.SetTagColor is not implemented"))
 }
 
 func (UnimplementedTaskmasterServiceHandler) ListShares(context.Context, *connect.Request[v1.ListSharesRequest]) (*connect.Response[v1.ListSharesResponse], error) {
