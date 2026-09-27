@@ -34,6 +34,19 @@ curl -H 'Content-Type: application/json' -d '{}' \
   http://localhost:8080/taskmaster.v1.TaskmasterService/Upcoming
 ```
 
+## Deploying behind Caddy
+
+Protect everything with the auth policy except the files needed to install the app, which browsers
+may fetch without cookies:
+
+```
+authorization policy tasks_policy {
+	bypass uri exact /manifest.webmanifest
+	bypass uri prefix /icons/
+	...
+}
+```
+
 ## Configuration
 
 | Variable | Meaning |

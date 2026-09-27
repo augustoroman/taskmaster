@@ -133,7 +133,11 @@ func run() error {
 	apiPath, api := server.New(svc, authn, cfg.pages)
 	mux.Handle(apiPath, api)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { fmt.Fprintln(w, "ok") })
-	mux.Handle("/", server.Authenticate(svc, authn, cfg.pages, web.Handler()))
+	webApp := web.Handler()
+	// Public so browsers can fetch them without credentials when installing.
+	mux.Handle("GET /manifest.webmanifest", webApp)
+	mux.Handle("GET /icons/", webApp)
+	mux.Handle("/", server.Authenticate(svc, authn, cfg.pages, webApp))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
