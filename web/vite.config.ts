@@ -10,7 +10,5 @@ export default defineConfig({
   build: { outDir: "dist", emptyOutDir: true, chunkSizeWarningLimit: 800 },
   server: {
     proxy: { "/taskmaster.v1.TaskmasterService": "http://localhost:8080" },
-    // mde is linked from ../../mde.
-    fs: { allow: ["..", "../../mde"] },
   },
 });

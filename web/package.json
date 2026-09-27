@@ -11,7 +11,7 @@
     "@bufbuild/protobuf": "^2.15.0",
     "@connectrpc/connect": "^2.2.0",
     "@connectrpc/connect-web": "^2.2.0",
-    "mde": "file:../../mde",
+    "mde": "github:augustoroman/mde#v0.1.0",
     "preact": "^10.29.8"
   },
   "devDependencies": {
@@ -19,5 +19,8 @@
     "@preact/preset-vite": "^2.10.6",
     "typescript": "^7.0.2",
     "vite": "^8.3.1"
+  },
+  "allowScripts": {
+    "github:augustoroman/mde#825e269314ddf97149cacd4387f94b5a7fbc57f1": true
   }
 }

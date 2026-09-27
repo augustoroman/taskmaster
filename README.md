@@ -9,8 +9,10 @@ A self-hosted task tracker for long-running household chores. See
 ./scripts/build.sh        # builds web/ then ./taskmaster with the web app embedded
 ```
 
-The web app uses the markdown editor in `../mde` (linked as a local npm package), so that
-checkout needs to be built first (`npm run build` there).
+The web app uses [mde](https://github.com/augustoroman/mde) for editing descriptions, pinned to a
+tag in `web/package.json`; npm builds it on install. To upgrade, change the tag and run
+`npm install` and `npm approve-scripts mde` in `web/` (npm asks you to approve its build step for
+each new version).
 
 ## Running locally
 
