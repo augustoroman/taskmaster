@@ -45,16 +45,35 @@ export function DueLabel({ task, group }: { task: Task; group?: UrgencyGroup }) 
   );
 }
 
-/** A task in a list, with a quick Done button when it can be done in one tap. */
+/** How many days a completion counts as "recent". */
+export const RECENT_DAYS = 3;
+
+/** Whether the task was done within the last RECENT_DAYS days. */
+export function doneRecently(task: Task, today: string): boolean {
+  return !!task.lastDone && daysBetween(task.lastDone, today) < RECENT_DAYS;
+}
+
+/** Whether the task's next due date is within its lead time (it would be in Upcoming). */
+export function dueSoon(task: Task, today: string): boolean {
+  const st = task.state!;
+  return !!st.due && !st.done && !st.paused && daysBetween(today, st.due) <= task.effectiveLeadDays;
+}
+
+/**
+ * A task in a list, with a quick Done button when it can be done in one tap.
+ * In the "recently done" list (recent), the button is hidden.
+ */
 export function TaskRow({
   task,
   group,
   showLastDone,
+  recent,
   onChanged,
 }: {
   task: Task;
   group?: UrgencyGroup;
   showLastDone?: boolean;
+  recent?: boolean;
   onChanged: (t: Task) => void;
 }) {
   const session = useSession();
@@ -63,7 +82,8 @@ export function TaskRow({
   const st = task.state!;
   const slot = st.currentSlotId ? slotTitle(task, st.currentSlotId) : "";
   const pending = queuedFor(task.id, connectivity).some((a) => a.kind === "complete");
-  const quickDone = canDo(task) && !st.done && !st.paused && !pending && activeChecklist(task).length === 0;
+  const quickDone = canDo(task) && !st.done && !st.paused && !pending && !recent && activeChecklist(task).length === 0;
+  const justDone = doneRecently(task, session.today());
 
   async function done(e: Event) {
     e.preventDefault();
@@ -98,9 +118,9 @@ export function TaskRow({
           {task.archived && <span class="badge">archived</span>}
           {pending && <span class="badge">done · waiting to sync</span>}
           <TagChips ids={task.tagIds} />
-          {showLastDone && task.lastDone && (
-            <span class="muted small" title={`Last done ${formatDate(task.lastDone, session.today())}`}>
-              done {relativePast(task.lastDone, session.today())}
+          {task.lastDone && (justDone || showLastDone) && (
+            <span class={justDone ? "done-chip" : "muted small"} title={`Last done ${formatDate(task.lastDone, session.today())}`}>
+              {justDone && "✓ "}done {relativePast(task.lastDone, session.today())}
             </span>
           )}
         </span>

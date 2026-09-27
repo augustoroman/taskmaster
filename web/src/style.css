@@ -528,6 +528,23 @@ h2.group-1 {
   color: var(--today);
 }
 
+.done-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+}
+
+.recent .task-list {
+  border-color: var(--accent);
+}
+
+.recent .title {
+  color: var(--muted);
+}
+
 .done-button {
   margin-right: 0.75rem;
   width: 2.5rem;
