@@ -7,9 +7,15 @@ export interface ScheduleDraft {
   intervalUnit: IntervalUnit;
   rule: Rule;
   rruleStart: string;
-  /** New interval and once tasks only. */
+  /** Interval and once tasks: the (first) due date, when it can be set. */
   firstDue: string;
 }
+
+/**
+ * Whether the due date of an interval or once task can be set here: always
+ * for a new task, and for an existing one until it has history.
+ */
+export type DueMode = "new" | "editable" | "locked";
 
 const KINDS: [ScheduleKind, string, string][] = [
   [ScheduleKind.INTERVAL, "Some time after it's done", "Like cleaning the dryer vent: doing it late pushes the next one back."],
@@ -140,9 +146,10 @@ function RuleEditor({ rule, onChange }: { rule: Rule; onChange: (r: Rule) => voi
   );
 }
 
-export function ScheduleEditor({ draft, onChange, isNew }: { draft: ScheduleDraft; onChange: (patch: Partial<ScheduleDraft>) => void; isNew: boolean }) {
+export function ScheduleEditor({ draft, onChange, dueMode }: { draft: ScheduleDraft; onChange: (patch: Partial<ScheduleDraft>) => void; dueMode: DueMode }) {
   const calendar = draft.kind === ScheduleKind.FIXED || draft.kind === ScheduleKind.CYCLE;
-  const needsStart = calendar && "every" in draft.rule && draft.rule.every > 1;
+  const picksPeriods = calendar && "every" in draft.rule && draft.rule.every > 1;
+  const dueLabel = dueMode === "new" ? "First due" : "Next due";
   return (
     <fieldset>
       <legend>When</legend>
@@ -171,25 +178,30 @@ export function ScheduleEditor({ draft, onChange, isNew }: { draft: ScheduleDraf
       )}
 
       {calendar && <RuleEditor rule={draft.rule} onChange={(rule) => onChange({ rule })} />}
-      {needsStart && (
+      {calendar && (
         <label>
-          Counting from
+          Starting on
           <input type="date" required value={draft.rruleStart} onInput={(e) => onChange({ rruleStart: e.currentTarget.value })} />
-          <span class="muted small">Picks which weeks or months are "on".</span>
+          <span class="muted small">
+            The first date is on or after this{picksPeriods ? `; it also picks which ${draft.rule.mode === "weekly" ? "weeks" : "months"} are "on"` : ""}.
+          </span>
         </label>
       )}
 
-      {isNew && draft.kind === ScheduleKind.INTERVAL && (
+      {dueMode !== "locked" && draft.kind === ScheduleKind.INTERVAL && (
         <label>
-          First due
+          {dueLabel}
           <input type="date" required value={draft.firstDue} onInput={(e) => onChange({ firstDue: e.currentTarget.value })} />
         </label>
       )}
-      {isNew && draft.kind === ScheduleKind.ONCE && (
+      {dueMode !== "locked" && draft.kind === ScheduleKind.ONCE && (
         <label>
-          Due (optional)
-          <input type="date" value={draft.firstDue} onInput={(e) => onChange({ firstDue: e.currentTarget.value })} />
+          Due{dueMode === "new" ? " (optional)" : ""}
+          <input type="date" required={dueMode !== "new"} value={draft.firstDue} onInput={(e) => onChange({ firstDue: e.currentTarget.value })} />
         </label>
+      )}
+      {dueMode === "locked" && (draft.kind === ScheduleKind.INTERVAL || draft.kind === ScheduleKind.ONCE) && (
+        <p class="muted small">To move the due date now, use Defer on the task page.</p>
       )}
     </fieldset>
   );

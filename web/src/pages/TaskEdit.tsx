@@ -2,7 +2,7 @@ import { useEffect, useState } from "preact/hooks";
 import type { MessageInitShape } from "@bufbuild/protobuf";
 import { api, IntervalUnit, isConflict, ScheduleKind, type Task, type TaskInputSchema } from "../api";
 import { ErrorBanner, MarkdownField, useRunner } from "../components/common";
-import { ScheduleEditor, type ScheduleDraft } from "../components/ScheduleEditor";
+import { ScheduleEditor, type DueMode, type ScheduleDraft } from "../components/ScheduleEditor";
 import { ListEditor, newItemID, savedID } from "../components/ListEditor";
 import { today } from "../dates";
 import { href, navigate } from "../router";
@@ -54,7 +54,7 @@ function draftFrom(t: Task): Draft {
     intervalUnit: s.intervalUnit || base.intervalUnit,
     rule: s.rrule ? ScheduleEditor.parse(s.rrule) : base.rule,
     rruleStart: s.rruleStart || base.rruleStart,
-    firstDue: "",
+    firstDue: t.state?.due ?? "",
     slots: t.slots.filter((x) => !x.removed).map(({ id, title, description }) => ({ id, title, description })),
     checklist: t.checklist.filter((x) => !x.removed).map(({ id, title }) => ({ id, title })),
     tagIds: t.tagIds,
@@ -119,7 +119,14 @@ export function TaskEdit({ id }: { id?: string }) {
     const res = await run(
       (): Promise<{ task?: Task }> =>
         task
-          ? api.updateTask({ id: task.id, version: task.version, task: input, updateTags: true, tagIds: draft!.tagIds })
+          ? api.updateTask({
+              id: task.id,
+              version: task.version,
+              task: input,
+              updateTags: true,
+              tagIds: draft!.tagIds,
+              due: dueMode === "editable" && draft!.firstDue !== task.state?.due ? draft!.firstDue : "",
+            })
           : api.createTask({ task: input, tagIds: draft!.tagIds, firstDue: draft!.firstDue }),
       (err) => {
         if (isConflict(err)) setError("Someone else changed this task while you were editing. Reload to see their changes; your edits here will be lost.");
@@ -128,6 +135,7 @@ export function TaskEdit({ id }: { id?: string }) {
     if (res?.task) navigate(href.task(res.task.id));
   }
 
+  const dueMode: DueMode = !task ? "new" : task.dueEditable ? "editable" : "locked";
   // Tags you can add, plus any already on the task (which you can remove).
   const assignable = assignableTags(session);
   const tags = [
@@ -142,7 +150,7 @@ export function TaskEdit({ id }: { id?: string }) {
         <input type="text" required maxLength={200} value={draft.title} onInput={(e) => set({ title: e.currentTarget.value })} autoFocus={!task} />
       </label>
 
-      <ScheduleEditor draft={draft} onChange={(patch) => set(patch)} isNew={!task} />
+      <ScheduleEditor draft={draft} onChange={(patch) => set(patch)} dueMode={dueMode} />
 
       {draft.kind === ScheduleKind.CYCLE ? (
         <fieldset>

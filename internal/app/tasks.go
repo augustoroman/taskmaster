@@ -185,8 +185,10 @@ func applyInput(t *store.Task, in TaskInput) error {
 // UpdateTask replaces a task's editable fields. If the schedule changes, the
 // current occurrence is recomputed and a schedule_changed event is recorded.
 // If tagIDs is non-nil, the task's tags that u can see become tagIDs (tags u
-// can't see are kept); adding a tag requires full access to it.
-func (s *Service) UpdateTask(ctx context.Context, u *store.User, id string, version int64, in TaskInput, tagIDs []string) (*TaskView, error) {
+// can't see are kept); adding a tag requires full access to it. A non-zero due
+// sets the due date directly, which is only allowed while the task has no
+// history (see dueEditable).
+func (s *Service) UpdateTask(ctx context.Context, u *store.User, id string, version int64, in TaskInput, tagIDs []string, due engine.Date) (*TaskView, error) {
 	if err := in.normalize(s, u); err != nil {
 		return nil, err
 	}
@@ -200,6 +202,20 @@ func (s *Service) UpdateTask(ctx context.Context, u *store.User, id string, vers
 			return ErrConflict
 		}
 		t := v.Task
+		if !due.IsZero() && due != t.State.Due {
+			history, err := tx.TasksWithHistory([]string{t.ID})
+			if err != nil {
+				return err
+			}
+			if err := dueEditable(t, history[t.ID]); err != nil {
+				return err
+			}
+			if in.Kind != engine.KindInterval && in.Kind != engine.KindOnce {
+				return invalid("tasks on set dates follow their rule; change its start date instead")
+			}
+		} else {
+			due = engine.Date{}
+		}
 		if tagIDs != nil {
 			if err := s.setTags(tx, u, t, tagIDs); err != nil {
 				return err
@@ -219,7 +235,10 @@ func (s *Service) UpdateTask(ctx context.Context, u *store.User, id string, vers
 		scheduleChanged := t.Kind != oldKind || t.Interval != oldInterval || t.RRule != oldRule || t.RRuleStart != oldStart
 		if scheduleChanged {
 			first := oldDue
-			if t.Kind == engine.KindInterval {
+			if !due.IsZero() {
+				first = due
+			}
+			if t.Kind == engine.KindInterval && due.IsZero() {
 				last, err := tx.LastDone(t.ID)
 				if err != nil {
 					return err
@@ -241,6 +260,8 @@ func (s *Service) UpdateTask(ctx context.Context, u *store.User, id string, vers
 			if err != nil {
 				return err
 			}
+		} else if !due.IsZero() {
+			t.State.Due = due
 		} else if t.Kind == engine.KindCycle && !slices.Contains(def.Slots, t.State.Slot) {
 			// The current slot was removed.
 			t.State.Slot = def.Slots[0]
@@ -328,6 +349,20 @@ func (s *Service) ListTasks(ctx context.Context, u *store.User, f TaskFilter) ([
 		return s.finish(tx, u, views...)
 	})
 	return views, err
+}
+
+// dueEditable reports why t's due date can't be set directly, or nil if it
+// can: only for interval and once tasks that haven't been done, missed,
+// skipped, deferred or paused yet. After that, moving the date is a deferral,
+// which is recorded.
+func dueEditable(t *store.Task, hasHistory bool) error {
+	switch {
+	case t.Kind != engine.KindInterval && t.Kind != engine.KindOnce:
+		return invalid("tasks on set dates follow their rule; change its start date instead")
+	case hasHistory || t.State.Deferred || t.State.Paused || t.State.Done:
+		return invalid("this task already has history; use Defer to move its due date")
+	}
+	return nil
 }
 
 // setTags makes the tags of t that u can see equal to want.

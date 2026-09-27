@@ -123,7 +123,7 @@ func TestAccessLevels(t *testing.T) {
 	assert.ErrorIs(t, err, ErrPermission)
 	_, err = f.svc.ArchiveTask(f.ctx, doer, task.ID)
 	assert.ErrorIs(t, err, ErrPermission)
-	_, err = f.svc.UpdateTask(f.ctx, doer, task.ID, task.Version, filter, nil)
+	_, err = f.svc.UpdateTask(f.ctx, doer, task.ID, task.Version, filter, nil, engine.Date{})
 	assert.ErrorIs(t, err, ErrPermission)
 
 	_, err = f.svc.Pause(f.ctx, full, a, engine.Date{})
@@ -316,7 +316,7 @@ func TestVersionConflict(t *testing.T) {
 	// A second person acting on the same stale version.
 	_, err = f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID, Version: task.Version}, "", false)
 	assert.ErrorIs(t, err, ErrConflict)
-	_, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, task.Version, filter, nil)
+	_, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, task.Version, filter, nil, engine.Date{})
 	assert.ErrorIs(t, err, ErrConflict)
 }
 
@@ -364,7 +364,7 @@ func TestChecklist(t *testing.T) {
 	got, err := f.svc.GetTask(f.ctx, f.admin, task.ID)
 	require.NoError(t, err)
 	in.Checklist = []store.ChecklistItem{{ID: garage, Title: "Garage"}, {Title: "Attic"}}
-	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, in, nil)
+	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, in, nil, engine.Date{})
 	require.NoError(t, err)
 	require.Len(t, updated.Checklist, 3)
 	assert.True(t, updated.Checklist[2].Removed)
@@ -382,7 +382,7 @@ func TestScheduleChange(t *testing.T) {
 
 	in := filter
 	in.Interval = engine.Interval{N: 1, Unit: engine.Months}
-	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, in, nil)
+	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, in, nil, engine.Date{})
 	require.NoError(t, err)
 	assert.Equal(t, d("2026-11-01"), updated.State.Due, "recomputed from the last completion")
 
@@ -408,7 +408,7 @@ func TestCycleSlots(t *testing.T) {
 
 	// Removing the current slot moves to the first remaining one.
 	in.Slots = []store.Slot{{ID: bathrooms, Title: "Clean bathrooms"}}
-	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, res.Task.Version, in, nil)
+	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, res.Task.Version, in, nil, engine.Date{})
 	require.NoError(t, err)
 	assert.Equal(t, engine.SlotID(bathrooms), updated.State.Slot)
 
@@ -520,25 +520,25 @@ func TestUpdateTaskTags(t *testing.T) {
 	task := f.task(f.admin, filter, house)
 
 	// full adds their own tag while editing.
-	got, err := f.svc.UpdateTask(f.ctx, full, task.ID, task.Version, filter, []string{house, secret})
+	got, err := f.svc.UpdateTask(f.ctx, full, task.ID, task.Version, filter, []string{house, secret}, engine.Date{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{house, secret}, got.VisibleTagIDs)
 
 	// The admin can't see "Secret"; replacing tags keeps it.
-	got, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, filter, []string{yard})
+	got, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, filter, []string{yard}, engine.Date{})
 	require.NoError(t, err)
 	assert.Equal(t, []string{yard}, got.VisibleTagIDs)
 	assert.ElementsMatch(t, []string{yard, secret}, got.TagIDs)
 
 	// Can't add a tag without full access to it; nothing changes.
 	other := f.tag(f.admin, "Other")
-	_, err = f.svc.UpdateTask(f.ctx, full, task.ID, got.Version, filter, []string{secret, other})
+	_, err = f.svc.UpdateTask(f.ctx, full, task.ID, got.Version, filter, []string{secret, other}, engine.Date{})
 	assert.ErrorIs(t, err, ErrNotFound, "full can't see Other")
 	again, _ := f.svc.GetTask(f.ctx, f.admin, task.ID)
 	assert.Equal(t, got.Version, again.Version)
 
 	// nil leaves tags alone.
-	got, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, filter, nil)
+	got, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, filter, nil, engine.Date{})
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{yard, secret}, got.TagIDs)
 }
@@ -604,4 +604,49 @@ func TestUndoChecklistCompletion(t *testing.T) {
 	assert.Equal(t, f.admin.ID, got.CheckedBy[engine.ItemID(a)])
 	events, _, _ := f.svc.ListEvents(f.ctx, f.admin, task.ID, "", 0, "")
 	assert.Empty(t, events)
+}
+
+func TestEditDueDate(t *testing.T) {
+	f := newFixture(t)
+	task := f.task(f.admin, filter)
+	assert.True(t, task.DueEditable)
+
+	// Before any history, the due date can be set directly, with no event.
+	got, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, task.Version, filter, nil, d("2026-11-15"))
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-11-15"), got.State.Due)
+	assert.False(t, got.State.Deferred)
+	events, _, _ := f.svc.ListEvents(f.ctx, f.admin, task.ID, "", 0, "")
+	assert.Empty(t, events)
+
+	// Notes don't count as history.
+	_, err = f.svc.AddNote(f.ctx, f.admin, task.ID, "remember the ladder", engine.Date{})
+	require.NoError(t, err)
+	got, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, filter, nil, d("2026-11-20"))
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-11-20"), got.State.Due)
+
+	// Same schedule change plus a new due date: the due date wins.
+	monthly := filter
+	monthly.Interval = engine.Interval{N: 1, Unit: engine.Months}
+	got, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, monthly, nil, d("2026-12-01"))
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-12-01"), got.State.Due)
+
+	// Once it's been deferred (or done), use Defer.
+	res, err := f.svc.Defer(f.ctx, f.admin, Action{TaskID: task.ID}, d("2026-12-05"))
+	require.NoError(t, err)
+	assert.False(t, res.Task.DueEditable)
+	_, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, res.Task.Version, monthly, nil, d("2026-12-10"))
+	var invalidErr *InvalidError
+	assert.ErrorAs(t, err, &invalidErr)
+	// Passing the current due date unchanged is fine.
+	_, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, res.Task.Version, monthly, nil, d("2026-12-05"))
+	assert.NoError(t, err)
+
+	// Fixed tasks follow their rule.
+	trashTask := f.task(f.admin, trash)
+	assert.False(t, trashTask.DueEditable)
+	_, err = f.svc.UpdateTask(f.ctx, f.admin, trashTask.ID, trashTask.Version, trash, nil, d("2026-10-08"))
+	assert.ErrorAs(t, err, &invalidErr)
 }

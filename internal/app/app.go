@@ -176,6 +176,9 @@ type TaskView struct {
 	Users map[string]*store.User
 	// LastDone is the date of the latest completion, if any.
 	LastDone engine.Date
+	// DueEditable means the due date can still be set directly (see
+	// dueEditable).
+	DueEditable bool
 	// loadedVersion is the version before any catch-up was saved, for
 	// comparing with the version the client sent.
 	loadedVersion int64
@@ -291,9 +294,14 @@ func (s *Service) finish(tx *store.Tx, u *store.User, views ...*TaskView) error 
 	if err != nil {
 		return err
 	}
+	history, err := tx.TasksWithHistory(taskIDs)
+	if err != nil {
+		return err
+	}
 	for _, v := range views {
 		v.Users = users
 		v.LastDone = lastDone[v.ID]
+		v.DueEditable = dueEditable(v.Task, history[v.ID]) == nil
 	}
 	return nil
 }

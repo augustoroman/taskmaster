@@ -2013,7 +2013,10 @@ type Task struct {
 	EffectiveLeadDays int32        `protobuf:"varint,19,opt,name=effective_lead_days,json=effectiveLeadDays,proto3" json:"effective_lead_days,omitempty"`
 	Projected         []*Projected `protobuf:"bytes,20,rep,name=projected,proto3" json:"projected,omitempty"`
 	// The date of the latest completion, if any.
-	LastDone      string `protobuf:"bytes,21,opt,name=last_done,json=lastDone,proto3" json:"last_done,omitempty"`
+	LastDone string `protobuf:"bytes,21,opt,name=last_done,json=lastDone,proto3" json:"last_done,omitempty"`
+	// The due date can be set with UpdateTask.due: an interval or once task
+	// with no history yet (never done, missed, skipped, deferred or paused).
+	DueEditable   bool `protobuf:"varint,22,opt,name=due_editable,json=dueEditable,proto3" json:"due_editable,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2193,6 +2196,13 @@ func (x *Task) GetLastDone() string {
 		return x.LastDone
 	}
 	return ""
+}
+
+func (x *Task) GetDueEditable() bool {
+	if x != nil {
+		return x.DueEditable
+	}
+	return false
 }
 
 // The editable fields of a task.
@@ -2625,8 +2635,11 @@ type UpdateTaskRequest struct {
 	Task    *TaskInput             `protobuf:"bytes,3,opt,name=task,proto3" json:"task,omitempty"`
 	// If set, the task's tags become tag_ids (among the tags you can see; others
 	// are kept). Adding a tag requires full access to it.
-	UpdateTags    bool     `protobuf:"varint,4,opt,name=update_tags,json=updateTags,proto3" json:"update_tags,omitempty"`
-	TagIds        []string `protobuf:"bytes,5,rep,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
+	UpdateTags bool     `protobuf:"varint,4,opt,name=update_tags,json=updateTags,proto3" json:"update_tags,omitempty"`
+	TagIds     []string `protobuf:"bytes,5,rep,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
+	// If set, the new due date; only allowed when the task's due_editable is
+	// true (otherwise use Defer).
+	Due           string `protobuf:"bytes,6,opt,name=due,proto3" json:"due,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2694,6 +2707,13 @@ func (x *UpdateTaskRequest) GetTagIds() []string {
 		return x.TagIds
 	}
 	return nil
+}
+
+func (x *UpdateTaskRequest) GetDue() string {
+	if x != nil {
+		return x.Due
+	}
+	return ""
 }
 
 type UpdateTaskResponse struct {
@@ -4769,7 +4789,7 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\x06checks\x18\b \x03(\v2\x14.taskmaster.v1.CheckR\x06checks\"6\n" +
 	"\tProjected\x12\x10\n" +
 	"\x03due\x18\x01 \x01(\tR\x03due\x12\x17\n" +
-	"\aslot_id\x18\x02 \x01(\tR\x06slotId\"\xc3\x06\n" +
+	"\aslot_id\x18\x02 \x01(\tR\x06slotId\"\xe6\x06\n" +
 	"\x04Task\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
@@ -4795,7 +4815,8 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"periodDays\x12.\n" +
 	"\x13effective_lead_days\x18\x13 \x01(\x05R\x11effectiveLeadDays\x126\n" +
 	"\tprojected\x18\x14 \x03(\v2\x18.taskmaster.v1.ProjectedR\tprojected\x12\x1b\n" +
-	"\tlast_done\x18\x15 \x01(\tR\blastDone\"\xb5\x02\n" +
+	"\tlast_done\x18\x15 \x01(\tR\blastDone\x12!\n" +
+	"\fdue_editable\x18\x16 \x01(\bR\vdueEditable\"\xb5\x02\n" +
 	"\tTaskInput\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1a\n" +
@@ -4822,14 +4843,15 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\atag_ids\x18\x02 \x03(\tR\x06tagIds\x12\x1b\n" +
 	"\tfirst_due\x18\x03 \x01(\tR\bfirstDue\"=\n" +
 	"\x12CreateTaskResponse\x12'\n" +
-	"\x04task\x18\x01 \x01(\v2\x13.taskmaster.v1.TaskR\x04task\"\xa5\x01\n" +
+	"\x04task\x18\x01 \x01(\v2\x13.taskmaster.v1.TaskR\x04task\"\xb7\x01\n" +
 	"\x11UpdateTaskRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12,\n" +
 	"\x04task\x18\x03 \x01(\v2\x18.taskmaster.v1.TaskInputR\x04task\x12\x1f\n" +
 	"\vupdate_tags\x18\x04 \x01(\bR\n" +
 	"updateTags\x12\x17\n" +
-	"\atag_ids\x18\x05 \x03(\tR\x06tagIds\"=\n" +
+	"\atag_ids\x18\x05 \x03(\tR\x06tagIds\x12\x10\n" +
+	"\x03due\x18\x06 \x01(\tR\x03due\"=\n" +
 	"\x12UpdateTaskResponse\x12'\n" +
 	"\x04task\x18\x01 \x01(\v2\x13.taskmaster.v1.TaskR\x04task\"$\n" +
 	"\x12ArchiveTaskRequest\x12\x0e\n" +

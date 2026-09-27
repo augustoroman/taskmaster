@@ -173,6 +173,26 @@ func (tx *Tx) LastDoneDates(taskIDs []string) (map[string]engine.Date, error) {
 	return out, err
 }
 
+// TasksWithHistory returns which of the tasks have any events besides notes
+// and schedule changes (i.e. they've been done, missed, deferred, ...).
+func (tx *Tx) TasksWithHistory(taskIDs []string) (map[string]bool, error) {
+	out := map[string]bool{}
+	if len(taskIDs) == 0 {
+		return out, nil
+	}
+	args := append(anys(taskIDs), EventNote, EventScheduleChanged)
+	err := tx.each(`SELECT DISTINCT task_id FROM events WHERE task_id IN (`+placeholders(len(taskIDs))+`) AND kind NOT IN (?, ?)`, args,
+		func(scan func(...any) error) error {
+			var id string
+			if err := scan(&id); err != nil {
+				return err
+			}
+			out[id] = true
+			return nil
+		})
+	return out, err
+}
+
 // LastDone returns the date of the task's latest done event, or zero.
 func (tx *Tx) LastDone(taskID string) (engine.Date, error) {
 	var date string
