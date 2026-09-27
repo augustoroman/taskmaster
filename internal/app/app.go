@@ -323,6 +323,9 @@ func (s *Service) Sweep(ctx context.Context) (int, error) {
 	changed := 0
 	var errs []error
 	for _, id := range ids {
+		if ctx.Err() != nil {
+			return changed, ctx.Err()
+		}
 		err := s.db.Tx(ctx, func(tx *store.Tx) error {
 			t, err := tx.GetTask(id)
 			if err != nil {

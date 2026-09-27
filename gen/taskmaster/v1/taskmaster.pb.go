@@ -3821,9 +3821,11 @@ type Event struct {
 	From string `protobuf:"bytes,11,opt,name=from,proto3" json:"from,omitempty"`
 	To   string `protobuf:"bytes,12,opt,name=to,proto3" json:"to,omitempty"`
 	// Markdown.
-	Note          string                 `protobuf:"bytes,13,opt,name=note,proto3" json:"note,omitempty"`
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
-	EditedAt      *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=edited_at,json=editedAt,proto3" json:"edited_at,omitempty"`
+	Note      string                 `protobuf:"bytes,13,opt,name=note,proto3" json:"note,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	EditedAt  *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=edited_at,json=editedAt,proto3" json:"edited_at,omitempty"`
+	// Notes: the checklist item it is about, if any.
+	ItemId        string `protobuf:"bytes,16,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -3961,6 +3963,13 @@ func (x *Event) GetEditedAt() *timestamppb.Timestamp {
 		return x.EditedAt
 	}
 	return nil
+}
+
+func (x *Event) GetItemId() string {
+	if x != nil {
+		return x.ItemId
+	}
+	return ""
 }
 
 type ListEventsRequest struct {
@@ -4802,7 +4811,7 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\rResumeRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x12\n" +
-	"\x04note\x18\x03 \x01(\tR\x04note\"\xf0\x03\n" +
+	"\x04note\x18\x03 \x01(\tR\x04note\"\x89\x04\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x17\n" +
 	"\atask_id\x18\x02 \x01(\tR\x06taskId\x12,\n" +
@@ -4822,7 +4831,8 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\x04note\x18\r \x01(\tR\x04note\x129\n" +
 	"\n" +
 	"created_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x127\n" +
-	"\tedited_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\beditedAt\"z\n" +
+	"\tedited_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\beditedAt\x12\x17\n" +
+	"\aitem_id\x18\x10 \x01(\tR\x06itemId\"z\n" +
 	"\x11ListEventsRequest\x12\x17\n" +
 	"\atask_id\x18\x01 \x01(\tR\x06taskId\x12\x17\n" +
 	"\aslot_id\x18\x02 \x01(\tR\x06slotId\x12\x14\n" +

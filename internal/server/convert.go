@@ -216,6 +216,7 @@ func eventPB(e *app.EventView) *pb.Event {
 		Note:             e.Note,
 		CreatedAt:        timestamp(e.CreatedAt),
 		EditedAt:         timestamp(e.EditedAt),
+		ItemId:           e.Data.ItemID,
 	}
 }
 

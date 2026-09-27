@@ -5,7 +5,8 @@
 
 # Build output
 /taskmaster
-/web/dist/
+/web/dist/*
+!/web/dist/.gitkeep
 node_modules/
 
 .DS_Store

@@ -1,4 +1,4 @@
-// Command taskmaster serves the taskmaster API (and, later, the web app).
+// Command taskmaster serves the taskmaster API and web app.
 //
 // Configuration is from the environment:
 //
@@ -27,6 +27,7 @@ import (
 	"github.com/augustoroman/taskmaster/internal/auth"
 	"github.com/augustoroman/taskmaster/internal/server"
 	"github.com/augustoroman/taskmaster/internal/store"
+	"github.com/augustoroman/taskmaster/web"
 )
 
 const sweepInterval = time.Hour
@@ -104,7 +105,7 @@ func run() error {
 	apiPath, api := server.New(svc, authn)
 	mux.Handle(apiPath, api)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { fmt.Fprintln(w, "ok") })
-	mux.Handle("/", server.Authenticate(svc, authn, http.HandlerFunc(placeholder)))
+	mux.Handle("/", server.Authenticate(svc, authn, web.Handler()))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -134,7 +135,7 @@ func sweepLoop(ctx context.Context, svc *app.Service) {
 	defer ticker.Stop()
 	for {
 		n, err := svc.Sweep(ctx)
-		if err != nil {
+		if err != nil && ctx.Err() == nil {
 			slog.Error("sweep", "err", err)
 		}
 		if n > 0 {
@@ -146,16 +147,4 @@ func sweepLoop(ctx context.Context, svc *app.Service) {
 		case <-ticker.C:
 		}
 	}
-}
-
-// placeholder stands in for the web app until it exists.
-func placeholder(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-	u := auth.UserFrom(r.Context())
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, "<!doctype html><title>Taskmaster</title><p>Taskmaster API is running. Logged in as %s.</p>",
-		strings.ReplaceAll(u.Email, "<", "&lt;"))
 }

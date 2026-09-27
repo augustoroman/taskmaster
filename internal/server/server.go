@@ -402,4 +402,3 @@ func (h *Handler) Upcoming(ctx context.Context, req *connect.Request[pb.Upcoming
 	}
 	return respond(out, err)
 }
-

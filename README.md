@@ -3,11 +3,22 @@
 A self-hosted task tracker for long-running household chores. See
 [docs/design.md](docs/design.md) for how scheduling, sharing and ranking work.
 
+## Building
+
+```sh
+./scripts/build.sh        # builds web/ then ./taskmaster with the web app embedded
+```
+
+The web app uses the markdown editor in `../mde` (linked as a local npm package), so that
+checkout needs to be built first (`npm run build` there).
+
 ## Running locally
 
 ```sh
-TASKS_DEV_USER=you@example.com go run ./cmd/taskmaster
+TASKS_DEV_USER=you@example.com ./taskmaster
 ```
+
+Then open http://localhost:8080/.
 
 `TASKS_DEV_USER` logs every request in as that email (loopback addresses only). The API is
 Connect-RPC at `http://localhost:8080/taskmaster.v1.TaskmasterService/<Method>` and accepts plain
@@ -33,5 +44,8 @@ curl -H 'Content-Type: application/json' -d '{}' \
 
 ```sh
 go test ./...
-./scripts/gen-proto.sh   # after editing proto/; needs protoc
+./scripts/gen-proto.sh   # after editing proto/; needs protoc and web/node_modules
 ```
+
+For frontend work, run the Go server as above and `npm run dev` in `web/`; Vite serves the app
+with hot reload on http://localhost:5173 and proxies API calls to the Go server on port 8080.

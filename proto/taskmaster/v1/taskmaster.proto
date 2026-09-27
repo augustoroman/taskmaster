@@ -486,6 +486,8 @@ message Event {
   string note = 13;
   google.protobuf.Timestamp created_at = 14;
   google.protobuf.Timestamp edited_at = 15;
+  // Notes: the checklist item it is about, if any.
+  string item_id = 16;
 }
 
 message ListEventsRequest {
