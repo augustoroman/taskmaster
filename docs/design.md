@@ -11,7 +11,7 @@ TypeScript web frontend. Google login is handled by Caddy.
 
 **v1 includes**
 - Four schedule kinds: interval (N days/weeks/months/years after completion), fixed (calendar
-  rule; misses are recorded), cycle (a rotation of slots on a calendar rule), and once (a single
+  rule; misses are recorded and skipped, or optionally kept until done), cycle (a rotation of slots on a calendar rule), and once (a single
   task with an optional due date).
 - Markdown descriptions, a history of completions and misses, timestamped notes, and editing past
   history.
@@ -98,6 +98,10 @@ a date on every completion, because backdating is unusual.
 - **Skip:** "we're not doing this one" records a `skipped` event and advances `due` exactly as a
   completion would.
 - **Changing a miss to done:** see §4.8. It fixes the history only.
+- **"If it's missed: keep it until it's done"** (a per-task option, for things like monthly
+  meds): nothing is recorded as missed; the date stays pending and overdue until it's done.
+  Completion then works like a cycle: `due = the first rule date after max(c, due)`, so doing it
+  on the 3rd still makes the next one due on the 1st. Deferrals don't record merged skips.
 
 ### 4.3 Cycle: a rotation of slots on a calendar rule
 

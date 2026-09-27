@@ -502,3 +502,51 @@ func TestProject(t *testing.T) {
 	assert.Equal(t, []Projected{{d("2026-01-31"), ""}, {d("2026-02-28"), ""}},
 		it.Project(State{Due: d("2026-01-31")}, 2))
 }
+
+func TestFixedCarryOver(t *testing.T) {
+	// Heartworm meds on the 1st: stays overdue until done, doesn't drift.
+	task := fixed(MustParseRecurrence("FREQ=MONTHLY;BYMONTHDAY=1", d("2026-01-01")))
+	task.CarryOver = true
+	require.NoError(t, task.Validate())
+	start := task.Init(d("2026-09-20"), Date{})
+	assert.Equal(t, d("2026-10-01"), start.Due)
+
+	// Missed dates aren't recorded; it stays due Oct 1 (overdue).
+	s, ev := task.Catchup(start, d("2026-11-15"))
+	assert.Empty(t, ev)
+	assert.Equal(t, d("2026-10-01"), s.Due)
+	u, ok := task.Rank(s, d("2026-10-04"))
+	assert.True(t, ok)
+	assert.Equal(t, GroupOverdue, u.Group)
+
+	cases := []struct {
+		name    string
+		doneOn  Date
+		wantDue Date
+	}{
+		{"on time", d("2026-10-01"), d("2026-11-01")},
+		{"early", d("2026-09-29"), d("2026-11-01")},
+		{"three days late: next is still the 1st", d("2026-10-04"), d("2026-11-01")},
+		{"six weeks late", d("2026-11-15"), d("2026-12-01")},
+	}
+	for _, tc := range cases {
+		s, ev, err := task.Complete(start, tc.doneOn, CompleteOptions{})
+		require.NoError(t, err, tc.name)
+		assert.Equal(t, tc.wantDue, s.Due, tc.name)
+		assert.Equal(t, EventDone, ev[0].Kind, tc.name)
+		assert.Equal(t, d("2026-10-01"), ev[0].Occurrence, tc.name)
+	}
+
+	// Deferring past later dates doesn't record merged skips.
+	deferred, _, err := task.Defer(start, d("2026-09-30"), d("2026-11-10"))
+	require.NoError(t, err)
+	s, ev, err = task.Complete(deferred, d("2026-11-09"), CompleteOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"done 2026-11-09 (occ 2026-10-01)"}, summarize(ev))
+	assert.Equal(t, d("2026-12-01"), s.Due)
+
+	// Only fixed tasks can carry over.
+	bad := interval(1, Months)
+	bad.CarryOver = true
+	assert.Error(t, bad.Validate())
+}

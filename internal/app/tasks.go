@@ -23,6 +23,8 @@ type TaskInput struct {
 	Interval    engine.Interval
 	RRule       string
 	RRuleStart  engine.Date // default: today
+	// CarryOver (fixed tasks) keeps a missed date pending until it's done.
+	CarryOver bool
 	// Slots and Checklist entries with an empty ID are new.
 	Slots     []store.Slot
 	Checklist []store.ChecklistItem
@@ -65,6 +67,9 @@ func (in *TaskInput) normalize(s *Service, u *store.User) error {
 	}
 	if in.Kind != engine.KindInterval {
 		in.Interval = engine.Interval{}
+	}
+	if in.Kind != engine.KindFixed {
+		in.CarryOver = false
 	}
 	for i := range in.Slots {
 		if in.Slots[i].Title = strings.TrimSpace(in.Slots[i].Title); in.Slots[i].Title == "" {
@@ -132,6 +137,7 @@ func (s *Service) CreateTask(ctx context.Context, u *store.User, in TaskInput, t
 func applyInput(t *store.Task, in TaskInput) error {
 	t.Title, t.Description, t.Priority, t.LeadDays, t.TZ = in.Title, in.Description, in.Priority, in.LeadDays, in.TZ
 	t.Kind, t.Interval, t.RRule, t.RRuleStart = in.scheduleOf()
+	t.CarryOver = in.CarryOver
 
 	oldSlots := map[string]store.Slot{}
 	for _, s := range t.Slots {

@@ -99,6 +99,7 @@ func taskPB(v *app.TaskView) *pb.Task {
 			IntervalUnit: units[v.Interval.Unit],
 			Rrule:        v.RRule,
 			RruleStart:   v.RRuleStart.String(),
+			CarryOver:    v.CarryOver,
 		},
 		TagIds:            v.VisibleTagIDs,
 		Creator:           userPB(v.Users[v.CreatorID]),
@@ -162,6 +163,7 @@ func taskInputFrom(in *pb.TaskInput) (app.TaskInput, error) {
 		TZ:          in.TimeZone,
 		Kind:        kind,
 		RRule:       in.Schedule.Rrule,
+		CarryOver:   in.Schedule.CarryOver,
 	}
 	if kind == engine.KindInterval {
 		unit, ok := reverse(units, in.Schedule.IntervalUnit)

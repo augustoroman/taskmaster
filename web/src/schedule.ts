@@ -114,7 +114,7 @@ export function describeSchedule(s: Schedule | undefined): string {
       return `Every ${s.intervalN === 1 ? one : `${s.intervalN} ${many}`} after it's done`;
     }
     case ScheduleKind.FIXED:
-      return capitalize(describeRule(s.rrule));
+      return capitalize(describeRule(s.rrule)) + (s.carryOver ? ", until done" : "");
     case ScheduleKind.CYCLE:
       return `Rotation, ${describeRule(s.rrule)}`;
     case ScheduleKind.ONCE:

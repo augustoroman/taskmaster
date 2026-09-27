@@ -634,6 +634,13 @@ h2.group-1 {
   margin: 0.5rem 0;
 }
 
+.miss-policy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin: 0.75rem 0;
+}
+
 .rule-fields {
   display: flex;
   flex-wrap: wrap;

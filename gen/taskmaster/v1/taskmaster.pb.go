@@ -1566,8 +1566,11 @@ type Schedule struct {
 	IntervalUnit IntervalUnit `protobuf:"varint,3,opt,name=interval_unit,json=intervalUnit,proto3,enum=taskmaster.v1.IntervalUnit" json:"interval_unit,omitempty"`
 	// Fixed and cycle tasks: a single RRULE line, e.g. "FREQ=WEEKLY;BYDAY=SA",
 	// and the date it starts from.
-	Rrule         string `protobuf:"bytes,4,opt,name=rrule,proto3" json:"rrule,omitempty"`
-	RruleStart    string `protobuf:"bytes,5,opt,name=rrule_start,json=rruleStart,proto3" json:"rrule_start,omitempty"`
+	Rrule      string `protobuf:"bytes,4,opt,name=rrule,proto3" json:"rrule,omitempty"`
+	RruleStart string `protobuf:"bytes,5,opt,name=rrule_start,json=rruleStart,proto3" json:"rrule_start,omitempty"`
+	// Fixed tasks: if a date is missed, keep it pending (and overdue) until it's
+	// done, instead of recording a miss and moving to the next date.
+	CarryOver     bool `protobuf:"varint,6,opt,name=carry_over,json=carryOver,proto3" json:"carry_over,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1635,6 +1638,13 @@ func (x *Schedule) GetRruleStart() string {
 		return x.RruleStart
 	}
 	return ""
+}
+
+func (x *Schedule) GetCarryOver() bool {
+	if x != nil {
+		return x.CarryOver
+	}
+	return false
 }
 
 type Slot struct {
@@ -4755,7 +4765,7 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\x05share\x18\x01 \x01(\v2\x14.taskmaster.v1.ShareR\x05share\"$\n" +
 	"\x12RevokeShareRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\"\x15\n" +
-	"\x13RevokeShareResponse\"\xd3\x01\n" +
+	"\x13RevokeShareResponse\"\xf2\x01\n" +
 	"\bSchedule\x12/\n" +
 	"\x04kind\x18\x01 \x01(\x0e2\x1b.taskmaster.v1.ScheduleKindR\x04kind\x12\x1d\n" +
 	"\n" +
@@ -4763,7 +4773,9 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\rinterval_unit\x18\x03 \x01(\x0e2\x1b.taskmaster.v1.IntervalUnitR\fintervalUnit\x12\x14\n" +
 	"\x05rrule\x18\x04 \x01(\tR\x05rrule\x12\x1f\n" +
 	"\vrrule_start\x18\x05 \x01(\tR\n" +
-	"rruleStart\"h\n" +
+	"rruleStart\x12\x1d\n" +
+	"\n" +
+	"carry_over\x18\x06 \x01(\bR\tcarryOver\"h\n" +
 	"\x04Slot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +

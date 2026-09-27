@@ -20,6 +20,7 @@ type Task struct {
 	Interval    engine.Interval
 	RRule       string
 	RRuleStart  engine.Date
+	CarryOver   bool
 	// State is the current occurrence, including checklist checks.
 	State engine.State
 	// CheckedBy records who checked each item in State.Checks.
@@ -73,10 +74,11 @@ type ChecklistItem struct {
 // Engine returns the task's scheduling definition.
 func (t *Task) Engine() (engine.Task, error) {
 	def := engine.Task{
-		Kind:     t.Kind,
-		Interval: t.Interval,
-		Priority: t.Priority,
-		Lead:     t.LeadDays,
+		Kind:      t.Kind,
+		Interval:  t.Interval,
+		CarryOver: t.CarryOver,
+		Priority:  t.Priority,
+		Lead:      t.LeadDays,
 	}
 	if t.Kind == engine.KindFixed || t.Kind == engine.KindCycle {
 		r, err := engine.ParseRecurrence(t.RRule, t.RRuleStart)
@@ -100,14 +102,14 @@ func (t *Task) Engine() (engine.Task, error) {
 
 const taskCols = `id, creator_id, title, description, priority, lead_days, tz, kind, interval_n, interval_unit,
 	rrule, rrule_start, due, deferred, deferred_from, paused, pause_until, current_slot_id, done,
-	archived_at, version, created_at, updated_at, undo`
+	archived_at, version, created_at, updated_at, undo, carry_over`
 
 func scanTask(row interface{ Scan(...any) error }) (*Task, error) {
 	var t Task
 	var rruleStart, due, deferredFrom, pauseUntil, slot, archived, created, updated, undo string
 	err := row.Scan(&t.ID, &t.CreatorID, &t.Title, &t.Description, &t.Priority, &t.LeadDays, &t.TZ, &t.Kind,
 		&t.Interval.N, &t.Interval.Unit, &t.RRule, &rruleStart, &due, &t.State.Deferred, &deferredFrom,
-		&t.State.Paused, &pauseUntil, &slot, &t.State.Done, &archived, &t.Version, &created, &updated, &undo)
+		&t.State.Paused, &pauseUntil, &slot, &t.State.Done, &archived, &t.Version, &created, &updated, &undo, &t.CarryOver)
 	if err != nil {
 		return nil, notFound(err)
 	}
@@ -257,11 +259,11 @@ func (tx *Tx) InsertTask(t *Task) error {
 	if err != nil {
 		return err
 	}
-	_, err = tx.exec(`INSERT INTO tasks (`+taskCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+	_, err = tx.exec(`INSERT INTO tasks (`+taskCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		t.ID, t.CreatorID, t.Title, t.Description, t.Priority, t.LeadDays, t.TZ, t.Kind, t.Interval.N, t.Interval.Unit,
 		t.RRule, t.RRuleStart.String(), t.State.Due.String(), t.State.Deferred, t.State.DeferredFrom.String(),
 		t.State.Paused, t.State.PauseUntil.String(), string(t.State.Slot), t.State.Done,
-		ts(t.ArchivedAt), t.Version, ts(t.CreatedAt), ts(t.UpdatedAt), undo)
+		ts(t.ArchivedAt), t.Version, ts(t.CreatedAt), ts(t.UpdatedAt), undo, t.CarryOver)
 	if err != nil {
 		return err
 	}
@@ -279,12 +281,12 @@ func (tx *Tx) UpdateTask(t *Task) error {
 		UPDATE tasks SET title = ?, description = ?, priority = ?, lead_days = ?, tz = ?, kind = ?,
 			interval_n = ?, interval_unit = ?, rrule = ?, rrule_start = ?, due = ?, deferred = ?,
 			deferred_from = ?, paused = ?, pause_until = ?, current_slot_id = ?, done = ?, archived_at = ?,
-			updated_at = ?, undo = ?, version = version + 1
+			updated_at = ?, undo = ?, carry_over = ?, version = version + 1
 		WHERE id = ? AND version = ?`,
 		t.Title, t.Description, t.Priority, t.LeadDays, t.TZ, t.Kind, t.Interval.N, t.Interval.Unit,
 		t.RRule, t.RRuleStart.String(), t.State.Due.String(), t.State.Deferred, t.State.DeferredFrom.String(),
 		t.State.Paused, t.State.PauseUntil.String(), string(t.State.Slot), t.State.Done, ts(t.ArchivedAt),
-		ts(t.UpdatedAt), undo, t.ID, t.Version)
+		ts(t.UpdatedAt), undo, t.CarryOver, t.ID, t.Version)
 	if err != nil {
 		return err
 	}

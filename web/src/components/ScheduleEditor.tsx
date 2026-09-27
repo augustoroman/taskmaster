@@ -7,6 +7,8 @@ export interface ScheduleDraft {
   intervalUnit: IntervalUnit;
   rule: Rule;
   rruleStart: string;
+  /** Fixed tasks: keep a missed date until it's done. */
+  carryOver: boolean;
   /** Interval and once tasks: the (first) due date, when it can be set. */
   firstDue: string;
 }
@@ -19,7 +21,7 @@ export type DueMode = "new" | "editable" | "locked";
 
 const KINDS: [ScheduleKind, string, string][] = [
   [ScheduleKind.INTERVAL, "Some time after it's done", "Like cleaning the dryer vent: doing it late pushes the next one back."],
-  [ScheduleKind.FIXED, "On set dates", "Like trash day: if you miss it, wait for the next one."],
+  [ScheduleKind.FIXED, "On set dates", "Tied to the calendar, like trash day or monthly meds."],
   [ScheduleKind.CYCLE, "Rotation", "Different jobs take turns on set dates, like weekend chores."],
   [ScheduleKind.ONCE, "Just once", "A one-off job, with or without a due date."],
 ];
@@ -178,6 +180,23 @@ export function ScheduleEditor({ draft, onChange, dueMode }: { draft: ScheduleDr
       )}
 
       {calendar && <RuleEditor rule={draft.rule} onChange={(rule) => onChange({ rule })} />}
+      {draft.kind === ScheduleKind.FIXED && (
+        <div class="miss-policy" role="radiogroup" aria-label="If it's missed">
+          <strong>If it's missed</strong>
+          <label class="check">
+            <input type="radio" name="carryOver" checked={!draft.carryOver} onChange={() => onChange({ carryOver: false })} />
+            <span>
+              Skip to the next date <span class="muted small">(like trash day)</span>
+            </span>
+          </label>
+          <label class="check">
+            <input type="radio" name="carryOver" checked={draft.carryOver} onChange={() => onChange({ carryOver: true })} />
+            <span>
+              Keep it until it's done <span class="muted small">(it stays overdue; the next one is still on schedule)</span>
+            </span>
+          </label>
+        </div>
+      )}
       {calendar && (
         <label>
           Starting on

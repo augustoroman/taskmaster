@@ -204,6 +204,9 @@ message Schedule {
   // and the date it starts from.
   string rrule = 4;
   string rrule_start = 5;
+  // Fixed tasks: if a date is missed, keep it pending (and overdue) until it's
+  // done, instead of recording a miss and moving to the next date.
+  bool carry_over = 6;
 }
 
 message Slot {

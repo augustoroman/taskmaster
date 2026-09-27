@@ -26,10 +26,13 @@ type Task struct {
 	Kind       Kind
 	Interval   Interval    // KindInterval
 	Recurrence *Recurrence // KindFixed, KindCycle
-	Slots      []SlotID    // KindCycle: the rotation, in order
-	Checklist  []ItemID    // any kind but KindCycle
-	Priority   Priority
-	Lead       int // lead time in days; 0 means the default (see LeadDays)
+	// CarryOver (KindFixed only) keeps a missed date pending until it's done,
+	// like a cycle, instead of recording a miss and moving on.
+	CarryOver bool
+	Slots     []SlotID // KindCycle: the rotation, in order
+	Checklist []ItemID // any kind but KindCycle
+	Priority  Priority
+	Lead      int // lead time in days; 0 means the default (see LeadDays)
 }
 
 func (t Task) Validate() error {
@@ -45,6 +48,9 @@ func (t Task) Validate() error {
 	case KindOnce:
 	default:
 		return fmt.Errorf("unknown schedule kind %q", t.Kind)
+	}
+	if t.CarryOver && t.Kind != KindFixed {
+		return fmt.Errorf("only tasks on set dates can carry over misses")
 	}
 	if t.Kind == KindCycle {
 		if len(t.Slots) == 0 {
@@ -198,7 +204,7 @@ func (t Task) Catchup(s State, today Date) (State, []Event) {
 		s, ev = t.resume(s, s.PauseUntil)
 		events = append(events, ev)
 	}
-	if s.Paused || s.Done || t.Kind != KindFixed || !s.Due.Before(today) {
+	if s.Paused || s.Done || !t.skipsMisses() || !s.Due.Before(today) {
 		return s, events
 	}
 
@@ -213,10 +219,15 @@ func (t Task) Catchup(s State, today Date) (State, []Event) {
 	return s, events
 }
 
+// skipsMisses reports whether passed dates are recorded as missed and
+// skipped (fixed tasks), rather than carried over until done (cycles and
+// carry-over fixed tasks).
+func (t Task) skipsMisses() bool { return t.Kind == KindFixed && !t.CarryOver }
+
 // mergedSkips records the fixed occurrences that a deferral absorbed: rule
 // dates after the deferred occurrence, up to and including the deferred date.
 func (t Task) mergedSkips(s State) []Event {
-	if !s.Deferred || t.Kind != KindFixed {
+	if !s.Deferred || !t.skipsMisses() {
 		return nil
 	}
 	var events []Event
@@ -327,6 +338,10 @@ func (t Task) advance(s State, c Date, slot SlotID) State {
 		s.Done = true
 		return s
 	case KindFixed:
+		if t.CarryOver {
+			// Like a cycle: done late, the next date is the first after it was done.
+			return t.newOccurrence(s, t.Recurrence.After(MaxDate(c, s.Due)))
+		}
 		// Doing it early doesn't move later dates. s.Due is the deferred date if
 		// the occurrence was deferred, so later rule dates up to it are merged.
 		return t.newOccurrence(s, t.Recurrence.After(s.Due))

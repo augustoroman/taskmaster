@@ -650,3 +650,38 @@ func TestEditDueDate(t *testing.T) {
 	_, err = f.svc.UpdateTask(f.ctx, f.admin, trashTask.ID, trashTask.Version, trash, nil, d("2026-10-08"))
 	assert.ErrorAs(t, err, &invalidErr)
 }
+
+func TestCarryOver(t *testing.T) {
+	f := newFixture(t)
+	meds := TaskInput{Title: "Heartworm meds", Kind: engine.KindFixed, RRule: "FREQ=MONTHLY;BYMONTHDAY=1", RRuleStart: d("2026-01-01"), CarryOver: true}
+	task := f.task(f.admin, meds)
+	assert.True(t, task.CarryOver)
+	assert.Equal(t, d("2026-10-01"), task.State.Due)
+
+	f.advance(3) // Oct 4: overdue, nothing recorded as missed
+	items, err := f.svc.Upcoming(f.ctx, f.admin, nil, false)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.Equal(t, engine.GroupOverdue, items[0].Urgency.Group)
+	res, err := f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID}, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-11-01"), res.Task.State.Due)
+	events, _, _ := f.svc.ListEvents(f.ctx, f.admin, task.ID, "", 0, "")
+	assert.Len(t, events, 1)
+
+	// Switching to skip mode (not a schedule change) takes effect on the next miss.
+	meds.CarryOver = false
+	got, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, res.Task.Version, meds, nil, engine.Date{})
+	require.NoError(t, err)
+	assert.False(t, got.CarryOver)
+	f.advance(30) // Nov 3
+	got, err = f.svc.GetTask(f.ctx, f.admin, task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-12-01"), got.State.Due, "Nov 1 was missed and skipped")
+
+	// Only fixed tasks keep the flag.
+	other := filter
+	other.CarryOver = true
+	it := f.task(f.admin, other)
+	assert.False(t, it.CarryOver)
+}
