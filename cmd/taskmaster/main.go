@@ -8,6 +8,11 @@
 //	TASKS_DB            SQLite database path (default ./tasks.db)
 //	TASKS_ADDR          listen address (default localhost:8080)
 //	TASKS_DEV_USER      log every request in as this email; loopback addresses only
+//	TASKS_LOGIN_URL     where to send people who aren't logged in, e.g. https://auth.example.com/oauth2/tasks
+//	TASKS_LOGOUT_URL    offered to people who aren't invited, to switch accounts, e.g. https://auth.example.com/logout
+//	TASKS_BACKUP_DIR    if set, write database snapshots here
+//	TASKS_BACKUP_KEEP   how many snapshots to keep (default 14)
+//	TASKS_BACKUP_EVERY  how often to snapshot, as a Go duration (default 24h)
 package main
 
 import (
@@ -19,11 +24,13 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/augustoroman/taskmaster/internal/app"
+	"github.com/augustoroman/taskmaster/internal/backup"
 	"github.com/augustoroman/taskmaster/internal/auth"
 	"github.com/augustoroman/taskmaster/internal/server"
 	"github.com/augustoroman/taskmaster/internal/store"
@@ -46,6 +53,8 @@ type config struct {
 	dbPath  string
 	addr    string
 	devUser string
+	pages   server.Pages
+	backup  backup.Config
 }
 
 func loadConfig() (config, error) {
@@ -55,6 +64,25 @@ func loadConfig() (config, error) {
 		dbPath:  cmpOr(os.Getenv("TASKS_DB"), "tasks.db"),
 		addr:    cmpOr(os.Getenv("TASKS_ADDR"), "localhost:8080"),
 		devUser: os.Getenv("TASKS_DEV_USER"),
+		pages: server.Pages{
+			LoginURL:  os.Getenv("TASKS_LOGIN_URL"),
+			LogoutURL: os.Getenv("TASKS_LOGOUT_URL"),
+		},
+		backup: backup.Config{Dir: os.Getenv("TASKS_BACKUP_DIR"), Keep: 14, Interval: 24 * time.Hour},
+	}
+	if v := os.Getenv("TASKS_BACKUP_KEEP"); v != "" {
+		n, err := strconv.Atoi(v)
+		if err != nil || n < 1 {
+			return c, fmt.Errorf("TASKS_BACKUP_KEEP: want a positive number, got %q", v)
+		}
+		c.backup.Keep = n
+	}
+	if v := os.Getenv("TASKS_BACKUP_EVERY"); v != "" {
+		d, err := time.ParseDuration(v)
+		if err != nil || d < time.Minute {
+			return c, fmt.Errorf("TASKS_BACKUP_EVERY: want a duration like 24h, got %q", v)
+		}
+		c.backup.Interval = d
 	}
 	for _, e := range strings.Split(os.Getenv("TASKS_ADMIN_EMAILS"), ",") {
 		if e = strings.TrimSpace(e); e != "" {
@@ -102,14 +130,19 @@ func run() error {
 	}
 
 	mux := http.NewServeMux()
-	apiPath, api := server.New(svc, authn)
+	apiPath, api := server.New(svc, authn, cfg.pages)
 	mux.Handle(apiPath, api)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { fmt.Fprintln(w, "ok") })
-	mux.Handle("/", server.Authenticate(svc, authn, web.Handler()))
+	mux.Handle("/", server.Authenticate(svc, authn, cfg.pages, web.Handler()))
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go sweepLoop(ctx, svc)
+	if cfg.backup.Dir != "" {
+		go backup.Run(ctx, db, cfg.backup, time.Now)
+	} else {
+		slog.Warn("TASKS_BACKUP_DIR is not set; no backups will be made")
+	}
 
 	srv := &http.Server{Addr: cfg.addr, Handler: mux, ReadHeaderTimeout: 10 * time.Second}
 	errc := make(chan error, 1)

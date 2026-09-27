@@ -35,7 +35,7 @@ func setup(t *testing.T) (client func(email string) taskmasterv1connect.Taskmast
 	t.Cleanup(func() { db.Close() })
 	svc := app.New(db, []string{"admin@example.com"}, time.Now)
 	mux := http.NewServeMux()
-	path, h := New(svc, headerAuth{})
+	path, h := New(svc, headerAuth{}, Pages{})
 	mux.Handle(path, h)
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
@@ -120,4 +120,35 @@ func TestTaskRoundTrip(t *testing.T) {
 	assert.Equal(t, pb.EventKind_EVENT_KIND_DONE, ev.Kind)
 	assert.Equal(t, []string{task.Checklist[1].Id}, ev.UncheckedItemIds)
 	assert.Equal(t, "garage needs a ladder", ev.Note)
+}
+
+func TestPages(t *testing.T) {
+	db, err := store.Open(":memory:")
+	require.NoError(t, err)
+	defer db.Close()
+	svc := app.New(db, []string{"admin@example.com"}, time.Now)
+	ok := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte("app")) })
+	h := Authenticate(svc, headerAuth{}, Pages{LoginURL: "https://auth.example.com/oauth2/tasks", LogoutURL: "https://auth.example.com/logout"}, ok)
+
+	get := func(email string) *httptest.ResponseRecorder {
+		r := httptest.NewRequest("GET", "/", nil)
+		if email != "" {
+			r.Header.Set("X-Test-User", email)
+		}
+		w := httptest.NewRecorder()
+		h.ServeHTTP(w, r)
+		return w
+	}
+	w := get("")
+	assert.Equal(t, http.StatusFound, w.Code)
+	assert.Equal(t, "https://auth.example.com/oauth2/tasks", w.Header().Get("Location"))
+
+	w = get("stranger@example.com")
+	assert.Equal(t, http.StatusForbidden, w.Code)
+	assert.Contains(t, w.Body.String(), "You need an invitation")
+	assert.Contains(t, w.Body.String(), "stranger@example.com")
+	assert.Contains(t, w.Body.String(), `href="https://auth.example.com/logout"`)
+
+	w = get("admin@example.com")
+	assert.Equal(t, "app", w.Body.String())
 }

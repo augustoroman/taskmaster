@@ -27,39 +27,51 @@ type Handler struct {
 var _ taskmasterv1connect.TaskmasterServiceHandler = (*Handler)(nil)
 
 // New returns the API's HTTP path prefix and handler, with authentication.
-func New(svc *app.Service, authn auth.Authenticator) (string, http.Handler) {
+func New(svc *app.Service, authn auth.Authenticator, pages Pages) (string, http.Handler) {
 	path, h := taskmasterv1connect.NewTaskmasterServiceHandler(&Handler{svc})
-	return path, Authenticate(svc, authn, h)
+	return path, Authenticate(svc, authn, pages, h)
 }
 
 // Authenticate identifies the user, applies the invite gate, and puts the
-// user in the request context.
-func Authenticate(svc *app.Service, authn auth.Authenticator, next http.Handler) http.Handler {
+// user in the request context. API requests get Connect errors; page requests
+// get a sign-in redirect or an explanation.
+func Authenticate(svc *app.Service, authn auth.Authenticator, pages Pages, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		isAPI := strings.HasPrefix(r.URL.Path, "/"+taskmasterv1connect.TaskmasterServiceName+"/")
 		id, err := authn.Authenticate(r)
 		if err != nil {
 			slog.Debug("unauthenticated request", "path", r.URL.Path, "err", err)
-			writeError(w, r, connect.CodeUnauthenticated, "not logged in")
+			if isAPI {
+				writeAPIError(w, connect.CodeUnauthenticated, "not logged in")
+			} else {
+				pages.notLoggedIn(w, r)
+			}
 			return
 		}
 		u, err := svc.Login(r.Context(), id.Email, id.Name, id.Picture)
 		if errors.Is(err, app.ErrNotInvited) {
-			writeError(w, r, connect.CodePermissionDenied,
-				"You need an invitation. Ask someone to share a tag with "+id.Email+".")
+			if isAPI {
+				writeAPIError(w, connect.CodePermissionDenied, "You need an invitation. Ask someone to share a tag with "+id.Email+".")
+			} else {
+				pages.notInvited(w, id.Email)
+			}
 			return
 		}
 		if err != nil {
 			slog.Error("login failed", "email", id.Email, "err", err)
-			writeError(w, r, connect.CodeInternal, "internal error")
+			if isAPI {
+				writeAPIError(w, connect.CodeInternal, "internal error")
+			} else {
+				http.Error(w, "internal error", http.StatusInternalServerError)
+			}
 			return
 		}
 		next.ServeHTTP(w, r.WithContext(auth.WithUser(r.Context(), u)))
 	})
 }
 
-// writeError writes a Connect-style JSON error for API requests and plain text
-// otherwise.
-func writeError(w http.ResponseWriter, r *http.Request, code connect.Code, msg string) {
+// writeAPIError writes a Connect-style JSON error.
+func writeAPIError(w http.ResponseWriter, code connect.Code, msg string) {
 	status := map[connect.Code]int{
 		connect.CodeUnauthenticated:  http.StatusUnauthorized,
 		connect.CodePermissionDenied: http.StatusForbidden,
@@ -67,13 +79,9 @@ func writeError(w http.ResponseWriter, r *http.Request, code connect.Code, msg s
 	if status == 0 {
 		status = http.StatusInternalServerError
 	}
-	if strings.HasPrefix(r.URL.Path, "/"+taskmasterv1connect.TaskmasterServiceName+"/") {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(status)
-		json.NewEncoder(w).Encode(map[string]string{"code": code.String(), "message": msg})
-		return
-	}
-	http.Error(w, msg, status)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{"code": code.String(), "message": msg})
 }
 
 func user(ctx context.Context) *store.User { return auth.UserFrom(ctx) }

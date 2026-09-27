@@ -39,6 +39,14 @@ curl -H 'Content-Type: application/json' -d '{}' \
 | `TASKS_DB` | SQLite database path (default `tasks.db`). |
 | `TASKS_ADDR` | Listen address (default `localhost:8080`). |
 | `TASKS_DEV_USER` | Development login; see above. |
+| `TASKS_LOGIN_URL` | Where to send page requests with no login, e.g. `https://auth.example.com/oauth2/tasks`. |
+| `TASKS_LOGOUT_URL` | Offered on the "you need an invitation" page to switch accounts, e.g. `https://auth.example.com/logout`. |
+| `TASKS_BACKUP_DIR` | If set, consistent database snapshots are written here (`tasks-<time>.db`). |
+| `TASKS_BACKUP_KEEP` | How many snapshots to keep (default 14). |
+| `TASKS_BACKUP_EVERY` | How often to take one, as a Go duration (default `24h`). |
+
+To restore, stop the server and copy a snapshot over the database file (removing any `-wal` and
+`-shm` files next to it).
 
 ## Development
 

@@ -53,6 +53,13 @@ func Open(path string) (*DB, error) {
 
 func (d *DB) Close() error { return d.db.Close() }
 
+// Backup writes a consistent copy of the database to path, which must not
+// exist. It is safe to call while the database is in use.
+func (d *DB) Backup(ctx context.Context, path string) error {
+	_, err := d.db.ExecContext(ctx, `VACUUM INTO ?`, path)
+	return err
+}
+
 func (d *DB) migrate() error {
 	if _, err := d.db.Exec(`CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY)`); err != nil {
 		return err
