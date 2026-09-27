@@ -30,8 +30,8 @@ import (
 	"time"
 
 	"github.com/augustoroman/taskmaster/internal/app"
-	"github.com/augustoroman/taskmaster/internal/backup"
 	"github.com/augustoroman/taskmaster/internal/auth"
+	"github.com/augustoroman/taskmaster/internal/backup"
 	"github.com/augustoroman/taskmaster/internal/server"
 	"github.com/augustoroman/taskmaster/internal/store"
 	"github.com/augustoroman/taskmaster/web"

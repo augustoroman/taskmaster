@@ -542,3 +542,66 @@ func TestUpdateTaskTags(t *testing.T) {
 	require.NoError(t, err)
 	assert.ElementsMatch(t, []string{yard, secret}, got.TagIDs)
 }
+
+func TestUndo(t *testing.T) {
+	f := newFixture(t)
+	house := f.tag(f.admin, "House")
+	_, doer, _ := f.inviteAll(house)
+	task := f.task(f.admin, filter, house)
+
+	res, err := f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID, Note: "oops, wrong task"}, "", false)
+	require.NoError(t, err)
+	require.NotEqual(t, task.State.Due, res.Task.State.Due)
+
+	// Someone else can't undo my action.
+	_, err = f.svc.Undo(f.ctx, doer, task.ID, res.Task.Version)
+	var invalidErr *InvalidError
+	assert.ErrorAs(t, err, &invalidErr)
+
+	got, err := f.svc.Undo(f.ctx, f.admin, task.ID, res.Task.Version)
+	require.NoError(t, err)
+	assert.Equal(t, task.State, got.State)
+	assert.True(t, got.LastDone.IsZero())
+	events, _, _ := f.svc.ListEvents(f.ctx, f.admin, task.ID, "", 0, "")
+	assert.Empty(t, events)
+
+	// Only once.
+	_, err = f.svc.Undo(f.ctx, f.admin, task.ID, 0)
+	assert.ErrorAs(t, err, &invalidErr)
+
+	// Not after something else changed the task.
+	res, err = f.svc.Defer(f.ctx, f.admin, Action{TaskID: task.ID}, d("2026-10-20"))
+	require.NoError(t, err)
+	_, err = f.svc.AddTaskTag(f.ctx, f.admin, task.ID, f.tag(f.admin, "Other"))
+	require.NoError(t, err)
+	_, err = f.svc.Undo(f.ctx, f.admin, task.ID, 0)
+	assert.ErrorAs(t, err, &invalidErr)
+
+	// Not after the window.
+	res, err = f.svc.Skip(f.ctx, f.admin, Action{TaskID: task.ID})
+	require.NoError(t, err)
+	f.now = f.now.Add(16 * time.Minute)
+	_, err = f.svc.Undo(f.ctx, f.admin, task.ID, res.Task.Version)
+	assert.ErrorAs(t, err, &invalidErr)
+}
+
+func TestUndoChecklistCompletion(t *testing.T) {
+	f := newFixture(t)
+	in := filter
+	in.Checklist = []store.ChecklistItem{{Title: "a"}, {Title: "b"}}
+	task := f.task(f.admin, in)
+	a, b := task.Checklist[0].ID, task.Checklist[1].ID
+	res, err := f.svc.CheckItem(f.ctx, f.admin, Action{TaskID: task.ID}, a)
+	require.NoError(t, err)
+	before := res.Task.State
+	res, err = f.svc.CheckItem(f.ctx, f.admin, Action{TaskID: task.ID}, b)
+	require.NoError(t, err)
+	require.Empty(t, res.Task.State.Checks, "completed")
+
+	got, err := f.svc.Undo(f.ctx, f.admin, task.ID, res.Task.Version)
+	require.NoError(t, err)
+	assert.Equal(t, before, got.State, "back to one item checked")
+	assert.Equal(t, f.admin.ID, got.CheckedBy[engine.ItemID(a)])
+	events, _, _ := f.svc.ListEvents(f.ctx, f.admin, task.ID, "", 0, "")
+	assert.Empty(t, events)
+}

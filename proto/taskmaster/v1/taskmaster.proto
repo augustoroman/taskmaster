@@ -42,6 +42,7 @@ service TaskmasterService {
   rpc SetCycleSlot(SetCycleSlotRequest) returns (ActionResponse) {}
   rpc Pause(PauseRequest) returns (ActionResponse) {}
   rpc Resume(ResumeRequest) returns (ActionResponse) {}
+  rpc Undo(UndoRequest) returns (ActionResponse) {}
 
   rpc ListEvents(ListEventsRequest) returns (ListEventsResponse) {}
   rpc AddNote(AddNoteRequest) returns (AddNoteResponse) {}
@@ -452,6 +453,14 @@ message ResumeRequest {
   string id = 1;
   int64 version = 2;
   string note = 3;
+}
+
+// Reverts your latest action on a task, if nothing else has changed it since
+// and it was within the last 15 minutes. version is the task version the
+// action returned.
+message UndoRequest {
+  string id = 1;
+  int64 version = 2;
 }
 
 // ---- History ----

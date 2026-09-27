@@ -116,6 +116,8 @@ const (
 	// TaskmasterServiceResumeProcedure is the fully-qualified name of the TaskmasterService's Resume
 	// RPC.
 	TaskmasterServiceResumeProcedure = "/taskmaster.v1.TaskmasterService/Resume"
+	// TaskmasterServiceUndoProcedure is the fully-qualified name of the TaskmasterService's Undo RPC.
+	TaskmasterServiceUndoProcedure = "/taskmaster.v1.TaskmasterService/Undo"
 	// TaskmasterServiceListEventsProcedure is the fully-qualified name of the TaskmasterService's
 	// ListEvents RPC.
 	TaskmasterServiceListEventsProcedure = "/taskmaster.v1.TaskmasterService/ListEvents"
@@ -164,6 +166,7 @@ type TaskmasterServiceClient interface {
 	SetCycleSlot(context.Context, *connect.Request[v1.SetCycleSlotRequest]) (*connect.Response[v1.ActionResponse], error)
 	Pause(context.Context, *connect.Request[v1.PauseRequest]) (*connect.Response[v1.ActionResponse], error)
 	Resume(context.Context, *connect.Request[v1.ResumeRequest]) (*connect.Response[v1.ActionResponse], error)
+	Undo(context.Context, *connect.Request[v1.UndoRequest]) (*connect.Response[v1.ActionResponse], error)
 	ListEvents(context.Context, *connect.Request[v1.ListEventsRequest]) (*connect.Response[v1.ListEventsResponse], error)
 	AddNote(context.Context, *connect.Request[v1.AddNoteRequest]) (*connect.Response[v1.AddNoteResponse], error)
 	EditEvent(context.Context, *connect.Request[v1.EditEventRequest]) (*connect.Response[v1.EditEventResponse], error)
@@ -356,6 +359,12 @@ func NewTaskmasterServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(taskmasterServiceMethods.ByName("Resume")),
 			connect.WithClientOptions(opts...),
 		),
+		undo: connect.NewClient[v1.UndoRequest, v1.ActionResponse](
+			httpClient,
+			baseURL+TaskmasterServiceUndoProcedure,
+			connect.WithSchema(taskmasterServiceMethods.ByName("Undo")),
+			connect.WithClientOptions(opts...),
+		),
 		listEvents: connect.NewClient[v1.ListEventsRequest, v1.ListEventsResponse](
 			httpClient,
 			baseURL+TaskmasterServiceListEventsProcedure,
@@ -420,6 +429,7 @@ type taskmasterServiceClient struct {
 	setCycleSlot  *connect.Client[v1.SetCycleSlotRequest, v1.ActionResponse]
 	pause         *connect.Client[v1.PauseRequest, v1.ActionResponse]
 	resume        *connect.Client[v1.ResumeRequest, v1.ActionResponse]
+	undo          *connect.Client[v1.UndoRequest, v1.ActionResponse]
 	listEvents    *connect.Client[v1.ListEventsRequest, v1.ListEventsResponse]
 	addNote       *connect.Client[v1.AddNoteRequest, v1.AddNoteResponse]
 	editEvent     *connect.Client[v1.EditEventRequest, v1.EditEventResponse]
@@ -572,6 +582,11 @@ func (c *taskmasterServiceClient) Resume(ctx context.Context, req *connect.Reque
 	return c.resume.CallUnary(ctx, req)
 }
 
+// Undo calls taskmaster.v1.TaskmasterService.Undo.
+func (c *taskmasterServiceClient) Undo(ctx context.Context, req *connect.Request[v1.UndoRequest]) (*connect.Response[v1.ActionResponse], error) {
+	return c.undo.CallUnary(ctx, req)
+}
+
 // ListEvents calls taskmaster.v1.TaskmasterService.ListEvents.
 func (c *taskmasterServiceClient) ListEvents(ctx context.Context, req *connect.Request[v1.ListEventsRequest]) (*connect.Response[v1.ListEventsResponse], error) {
 	return c.listEvents.CallUnary(ctx, req)
@@ -628,6 +643,7 @@ type TaskmasterServiceHandler interface {
 	SetCycleSlot(context.Context, *connect.Request[v1.SetCycleSlotRequest]) (*connect.Response[v1.ActionResponse], error)
 	Pause(context.Context, *connect.Request[v1.PauseRequest]) (*connect.Response[v1.ActionResponse], error)
 	Resume(context.Context, *connect.Request[v1.ResumeRequest]) (*connect.Response[v1.ActionResponse], error)
+	Undo(context.Context, *connect.Request[v1.UndoRequest]) (*connect.Response[v1.ActionResponse], error)
 	ListEvents(context.Context, *connect.Request[v1.ListEventsRequest]) (*connect.Response[v1.ListEventsResponse], error)
 	AddNote(context.Context, *connect.Request[v1.AddNoteRequest]) (*connect.Response[v1.AddNoteResponse], error)
 	EditEvent(context.Context, *connect.Request[v1.EditEventRequest]) (*connect.Response[v1.EditEventResponse], error)
@@ -816,6 +832,12 @@ func NewTaskmasterServiceHandler(svc TaskmasterServiceHandler, opts ...connect.H
 		connect.WithSchema(taskmasterServiceMethods.ByName("Resume")),
 		connect.WithHandlerOptions(opts...),
 	)
+	taskmasterServiceUndoHandler := connect.NewUnaryHandler(
+		TaskmasterServiceUndoProcedure,
+		svc.Undo,
+		connect.WithSchema(taskmasterServiceMethods.ByName("Undo")),
+		connect.WithHandlerOptions(opts...),
+	)
 	taskmasterServiceListEventsHandler := connect.NewUnaryHandler(
 		TaskmasterServiceListEventsProcedure,
 		svc.ListEvents,
@@ -906,6 +928,8 @@ func NewTaskmasterServiceHandler(svc TaskmasterServiceHandler, opts ...connect.H
 			taskmasterServicePauseHandler.ServeHTTP(w, r)
 		case TaskmasterServiceResumeProcedure:
 			taskmasterServiceResumeHandler.ServeHTTP(w, r)
+		case TaskmasterServiceUndoProcedure:
+			taskmasterServiceUndoHandler.ServeHTTP(w, r)
 		case TaskmasterServiceListEventsProcedure:
 			taskmasterServiceListEventsHandler.ServeHTTP(w, r)
 		case TaskmasterServiceAddNoteProcedure:
@@ -1039,6 +1063,10 @@ func (UnimplementedTaskmasterServiceHandler) Pause(context.Context, *connect.Req
 
 func (UnimplementedTaskmasterServiceHandler) Resume(context.Context, *connect.Request[v1.ResumeRequest]) (*connect.Response[v1.ActionResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("taskmaster.v1.TaskmasterService.Resume is not implemented"))
+}
+
+func (UnimplementedTaskmasterServiceHandler) Undo(context.Context, *connect.Request[v1.UndoRequest]) (*connect.Response[v1.ActionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("taskmaster.v1.TaskmasterService.Undo is not implemented"))
 }
 
 func (UnimplementedTaskmasterServiceHandler) ListEvents(context.Context, *connect.Request[v1.ListEventsRequest]) (*connect.Response[v1.ListEventsResponse], error) {

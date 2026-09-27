@@ -1,6 +1,8 @@
 package store
 
 import (
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/augustoroman/taskmaster/internal/engine"
@@ -31,6 +33,28 @@ type Task struct {
 	Slots     []Slot
 	Checklist []ChecklistItem
 	TagIDs    []string
+	// Undo, if set, reverts the latest action. It only applies while the
+	// task's version is still Undo.Version.
+	Undo *Undo
+}
+
+// Undo is what's needed to revert an action: the state before it and the
+// events it recorded.
+type Undo struct {
+	Version   int64                    `json:"version"`
+	UserID    string                   `json:"user_id"`
+	At        time.Time                `json:"at"`
+	State     engine.State             `json:"state"`
+	CheckedBy map[engine.ItemID]string `json:"checked_by,omitempty"`
+	EventIDs  []string                 `json:"event_ids"`
+}
+
+func undoJSON(u *Undo) (string, error) {
+	if u == nil {
+		return "", nil
+	}
+	b, err := json.Marshal(u)
+	return string(b), err
 }
 
 type Slot struct {
@@ -76,16 +100,22 @@ func (t *Task) Engine() (engine.Task, error) {
 
 const taskCols = `id, creator_id, title, description, priority, lead_days, tz, kind, interval_n, interval_unit,
 	rrule, rrule_start, due, deferred, deferred_from, paused, pause_until, current_slot_id, done,
-	archived_at, version, created_at, updated_at`
+	archived_at, version, created_at, updated_at, undo`
 
 func scanTask(row interface{ Scan(...any) error }) (*Task, error) {
 	var t Task
-	var rruleStart, due, deferredFrom, pauseUntil, slot, archived, created, updated string
+	var rruleStart, due, deferredFrom, pauseUntil, slot, archived, created, updated, undo string
 	err := row.Scan(&t.ID, &t.CreatorID, &t.Title, &t.Description, &t.Priority, &t.LeadDays, &t.TZ, &t.Kind,
 		&t.Interval.N, &t.Interval.Unit, &t.RRule, &rruleStart, &due, &t.State.Deferred, &deferredFrom,
-		&t.State.Paused, &pauseUntil, &slot, &t.State.Done, &archived, &t.Version, &created, &updated)
+		&t.State.Paused, &pauseUntil, &slot, &t.State.Done, &archived, &t.Version, &created, &updated, &undo)
 	if err != nil {
 		return nil, notFound(err)
+	}
+	if undo != "" {
+		t.Undo = &Undo{}
+		if err := json.Unmarshal([]byte(undo), t.Undo); err != nil {
+			return nil, fmt.Errorf("task %s: corrupt undo: %w", t.ID, err)
+		}
 	}
 	t.RRuleStart = mustDate(rruleStart)
 	t.State.Due = mustDate(due)
@@ -223,11 +253,15 @@ func (tx *Tx) InsertTask(t *Task) error {
 		t.ID = NewID()
 	}
 	t.Version = 1
-	_, err := tx.exec(`INSERT INTO tasks (`+taskCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+	undo, err := undoJSON(t.Undo)
+	if err != nil {
+		return err
+	}
+	_, err = tx.exec(`INSERT INTO tasks (`+taskCols+`) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		t.ID, t.CreatorID, t.Title, t.Description, t.Priority, t.LeadDays, t.TZ, t.Kind, t.Interval.N, t.Interval.Unit,
 		t.RRule, t.RRuleStart.String(), t.State.Due.String(), t.State.Deferred, t.State.DeferredFrom.String(),
 		t.State.Paused, t.State.PauseUntil.String(), string(t.State.Slot), t.State.Done,
-		ts(t.ArchivedAt), t.Version, ts(t.CreatedAt), ts(t.UpdatedAt))
+		ts(t.ArchivedAt), t.Version, ts(t.CreatedAt), ts(t.UpdatedAt), undo)
 	if err != nil {
 		return err
 	}
@@ -237,16 +271,20 @@ func (tx *Tx) InsertTask(t *Task) error {
 // UpdateTask saves all of t if its version is still t.Version, then
 // increments t.Version. It returns ErrConflict if the task changed.
 func (tx *Tx) UpdateTask(t *Task) error {
+	undo, err := undoJSON(t.Undo)
+	if err != nil {
+		return err
+	}
 	res, err := tx.exec(`
 		UPDATE tasks SET title = ?, description = ?, priority = ?, lead_days = ?, tz = ?, kind = ?,
 			interval_n = ?, interval_unit = ?, rrule = ?, rrule_start = ?, due = ?, deferred = ?,
 			deferred_from = ?, paused = ?, pause_until = ?, current_slot_id = ?, done = ?, archived_at = ?,
-			updated_at = ?, version = version + 1
+			updated_at = ?, undo = ?, version = version + 1
 		WHERE id = ? AND version = ?`,
 		t.Title, t.Description, t.Priority, t.LeadDays, t.TZ, t.Kind, t.Interval.N, t.Interval.Unit,
 		t.RRule, t.RRuleStart.String(), t.State.Due.String(), t.State.Deferred, t.State.DeferredFrom.String(),
 		t.State.Paused, t.State.PauseUntil.String(), string(t.State.Slot), t.State.Done, ts(t.ArchivedAt),
-		ts(t.UpdatedAt), t.ID, t.Version)
+		ts(t.UpdatedAt), undo, t.ID, t.Version)
 	if err != nil {
 		return err
 	}

@@ -3,7 +3,9 @@ package app
 import (
 	"context"
 	"errors"
+	"maps"
 	"strings"
+	"time"
 
 	"github.com/augustoroman/taskmaster/internal/engine"
 	"github.com/augustoroman/taskmaster/internal/store"
@@ -62,17 +64,12 @@ func (s *Service) act(ctx context.Context, u *store.User, a Action, opt actOptio
 		if !v.ArchivedAt.IsZero() {
 			return invalid("task is archived")
 		}
+		prevState, prevCheckedBy := v.State, maps.Clone(v.CheckedBy)
 		state, events, err := opt.apply(v)
 		if err != nil {
 			return engineError(err)
 		}
 		now := s.now()
-		v.State = state
-		syncCheckedBy(v.Task, u.ID)
-		v.UpdatedAt = now
-		if err := tx.UpdateTask(v.Task); err != nil {
-			return err
-		}
 
 		var stored []*store.Event
 		noteAttached := a.Note == ""
@@ -89,10 +86,22 @@ func (s *Service) act(ctx context.Context, u *store.User, a Action, opt actOptio
 		}
 		if !noteAttached {
 			stored = append(stored, &store.Event{
-				TaskID: v.ID, Kind: store.EventNote, UserID: u.ID, Date: v.Today, Occurrence: v.State.Due,
-				SlotID: string(v.State.Slot), Note: a.Note, CreatedAt: now,
+				ID: store.NewID(), TaskID: v.ID, Kind: store.EventNote, UserID: u.ID, Date: v.Today,
+				Occurrence: state.Due, SlotID: string(state.Slot), Note: a.Note, CreatedAt: now,
 				Data: store.EventData{ItemID: opt.noteItem},
 			})
+		}
+
+		undo := &store.Undo{Version: v.Version + 1, UserID: u.ID, At: now, State: prevState, CheckedBy: prevCheckedBy}
+		for _, ev := range stored {
+			undo.EventIDs = append(undo.EventIDs, ev.ID)
+		}
+		v.State = state
+		syncCheckedBy(v.Task, u.ID)
+		v.UpdatedAt = now
+		v.Undo = undo
+		if err := tx.UpdateTask(v.Task); err != nil {
+			return err
 		}
 		for _, ev := range stored {
 			if err := tx.InsertEvent(ev); err != nil {
@@ -107,6 +116,42 @@ func (s *Service) act(ctx context.Context, u *store.User, a Action, opt actOptio
 		return s.finish(tx, u, v)
 	})
 	return result, conflict(err)
+}
+
+// undoWindow is how long after an action it can be undone.
+const undoWindow = 15 * time.Minute
+
+// Undo reverts the latest action on a task: its state goes back to what it
+// was and the history entries the action recorded are removed. It only works
+// for the person who acted, within undoWindow, and while nothing else has
+// changed the task. version, if non-zero, must be the version the action
+// produced.
+func (s *Service) Undo(ctx context.Context, u *store.User, taskID string, version int64) (*TaskView, error) {
+	var view *TaskView
+	err := s.db.Tx(ctx, func(tx *store.Tx) error {
+		v, err := s.loadTask(tx, u, taskID, store.LevelDo)
+		if err != nil {
+			return err
+		}
+		un := v.Undo
+		if un == nil || un.Version != v.Version || un.UserID != u.ID || s.now().Sub(un.At) > undoWindow ||
+			(version != 0 && version != v.Version) {
+			return invalid("that can't be undone anymore")
+		}
+		for _, id := range un.EventIDs {
+			if err := tx.DeleteEvent(id); err != nil {
+				return err
+			}
+		}
+		v.State, v.CheckedBy, v.Undo = un.State, un.CheckedBy, nil
+		v.UpdatedAt = s.now()
+		if err := tx.UpdateTask(v.Task); err != nil {
+			return err
+		}
+		view = v
+		return s.finish(tx, u, v)
+	})
+	return view, conflict(err)
 }
 
 func engineError(err error) error {

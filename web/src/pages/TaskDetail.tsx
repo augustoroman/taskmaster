@@ -4,7 +4,7 @@ import { addDays, formatDate, relativeDue, relativePast } from "../dates";
 import { href, navigate } from "../router";
 import { describeSchedule } from "../schedule";
 import { assignableTags, useSession } from "../session";
-import { activeChecklist, activeSlots, canDo, canEdit, ErrorBanner, Markdown, slotTitle, toast, useRunner } from "../components/common";
+import { activeChecklist, activeSlots, canDo, canEdit, ErrorBanner, Markdown, slotTitle, toast, undoAction, useRunner } from "../components/common";
 import { History } from "../components/History";
 import { TagChips } from "../components/TaskRow";
 
@@ -26,7 +26,19 @@ export function TaskDetail({ id }: { id: string }) {
     if (!res?.task) return false;
     setTask(res.task);
     setHistoryKey((k) => k + 1);
-    if (message) toast(message);
+    if (message) {
+      // Actions (not other edits) can be undone.
+      const undoable = "events" in res;
+      toast(
+        message,
+        undoable
+          ? undoAction(res.task, (t) => {
+              setTask(t);
+              setHistoryKey((k) => k + 1);
+            })
+          : undefined,
+      );
+    }
     return true;
   }
 

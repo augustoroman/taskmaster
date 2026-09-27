@@ -3,7 +3,7 @@ import { daysBetween, formatDate, relativeDue, relativePast } from "../dates";
 import { href } from "../router";
 import { describeSchedule } from "../schedule";
 import { useSession } from "../session";
-import { activeChecklist, canDo, slotTitle, toast, useRunner } from "./common";
+import { activeChecklist, canDo, slotTitle, toast, undoAction, useRunner } from "./common";
 
 export function TagChips({ ids }: { ids: string[] }) {
   const { tagsById } = useSession();
@@ -65,7 +65,7 @@ export function TaskRow({
     const res = await run(() => api.complete({ id: task.id, version: task.version }));
     if (res?.task) {
       const next = res.task.state?.due;
-      toast(`Done: ${task.title}${next && !res.task.state?.done ? ` · next ${formatDate(next)}` : ""}`);
+      toast(`Done: ${task.title}${next && !res.task.state?.done ? ` · next ${formatDate(next)}` : ""}`, undoAction(res.task, onChanged));
       onChanged(res.task);
     }
   }

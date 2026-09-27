@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { createEditor, type MarkdownEditor } from "mde";
 import "mde/style.css";
-import { AccessLevel, errorMessage, type Task } from "../api";
+import { AccessLevel, api, errorMessage, type Task } from "../api";
 import { renderMarkdown } from "../markdown";
 
 export const canDo = (t: Task) => t.myAccess >= AccessLevel.DO;
@@ -78,12 +78,30 @@ export function useRunner() {
 
 // ---- Toasts ----
 
-type ToastMsg = { id: number; text: string };
+type ToastAction = { label: string; run: () => Promise<unknown> };
+type ToastMsg = { id: number; text: string; action?: ToastAction };
 let toastListener: ((t: ToastMsg) => void) | null = null;
 let nextToast = 1;
 
-export function toast(text: string) {
-  toastListener?.({ id: nextToast++, text });
+/** Shows a brief message, optionally with a button (like Undo). */
+export function toast(text: string, action?: ToastAction) {
+  toastListener?.({ id: nextToast++, text, action });
+}
+
+/** An Undo button for a toast after an action that returned `task`. */
+export function undoAction(task: Task, onUndone: (t: Task) => void): ToastAction {
+  return {
+    label: "Undo",
+    run: async () => {
+      try {
+        const res = await api.undo({ id: task.id, version: task.version });
+        if (res.task) onUndone(res.task);
+        toast("Undone");
+      } catch (err) {
+        toast(errorMessage(err));
+      }
+    },
+  };
 }
 
 export function Toasts() {
@@ -91,7 +109,7 @@ export function Toasts() {
   useEffect(() => {
     toastListener = (t) => {
       setItems((list) => [...list, t]);
-      setTimeout(() => setItems((list) => list.filter((x) => x.id !== t.id)), 4000);
+      setTimeout(() => setItems((list) => list.filter((x) => x.id !== t.id)), t.action ? 8000 : 4000);
     };
     return () => {
       toastListener = null;
@@ -101,7 +119,18 @@ export function Toasts() {
     <div class="toasts" aria-live="polite">
       {items.map((t) => (
         <div class="toast" key={t.id}>
-          {t.text}
+          <span>{t.text}</span>
+          {t.action && (
+            <button
+              class="toast-action"
+              onClick={() => {
+                setItems((list) => list.filter((x) => x.id !== t.id));
+                t.action!.run();
+              }}
+            >
+              {t.action.label}
+            </button>
+          )}
         </div>
       ))}
     </div>

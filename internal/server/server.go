@@ -354,6 +354,14 @@ func (h *Handler) Resume(ctx context.Context, req *connect.Request[pb.ResumeRequ
 	return actionResponse(h.svc.Resume(ctx, user(ctx), app.Action{TaskID: m.Id, Version: m.Version, Note: m.Note}))
 }
 
+func (h *Handler) Undo(ctx context.Context, req *connect.Request[pb.UndoRequest]) (*connect.Response[pb.ActionResponse], error) {
+	t, err := h.svc.Undo(ctx, user(ctx), req.Msg.Id, req.Msg.Version)
+	if err != nil {
+		return nil, toConnect(err)
+	}
+	return respond(&pb.ActionResponse{Task: taskPB(t)}, nil)
+}
+
 // ---- History ----
 
 func (h *Handler) ListEvents(ctx context.Context, req *connect.Request[pb.ListEventsRequest]) (*connect.Response[pb.ListEventsResponse], error) {

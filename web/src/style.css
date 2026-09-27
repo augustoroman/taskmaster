@@ -771,4 +771,18 @@ label.check {
   padding: 0.6rem 0.9rem;
   border-radius: var(--radius);
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.toast-action {
+  background: none;
+  border: none;
+  color: var(--bg);
+  font-weight: 600;
+  text-decoration: underline;
+  padding: 0.1rem 0.2rem;
+  flex-shrink: 0;
 }
