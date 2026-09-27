@@ -14,6 +14,9 @@ tag in `web/package.json`; npm builds it on install. To upgrade, change the tag 
 `npm install` and `npm approve-scripts mde` in `web/` (npm asks you to approve its build step for
 each new version).
 
+To update a server running as the `taskmaster` systemd user service, run `./scripts/deploy.sh`.
+It pulls `main`, rebuilds, restarts the service and checks `/healthz`.
+
 ## Running locally
 
 ```sh
