@@ -416,6 +416,18 @@ func (t Task) resume(s State, d Date) (State, Event) {
 	return s, Event{Kind: EventResumed, Date: d, Slot: s.Slot}
 }
 
+// Reactivate brings back a task that was set aside (archived) without
+// recording what it missed: a fixed task whose date has passed moves to its
+// next rule date on or after today. Other kinds are unchanged; they show as
+// overdue instead.
+func (t Task) Reactivate(s State, today Date) State {
+	s = s.clone()
+	if t.Kind == KindFixed && !s.Done && !s.Paused && s.Due.Before(today) {
+		s = t.newOccurrence(s, t.Recurrence.OnOrAfter(today))
+	}
+	return s
+}
+
 // SetSlot makes slot the current slot of a cycle without completing anything.
 func (t Task) SetSlot(s State, today Date, slot SlotID) (State, []Event, error) {
 	s, events, err := t.actionable(s, today)

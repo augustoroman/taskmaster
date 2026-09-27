@@ -1,0 +1,557 @@
+syntax = "proto3";
+
+package taskmaster.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/augustoroman/taskmaster/gen/taskmaster/v1;taskmasterv1";
+
+// Dates are civil dates as "YYYY-MM-DD" strings; "" means no date.
+// Every call acts as the logged-in user.
+service TaskmasterService {
+  rpc GetMe(GetMeRequest) returns (GetMeResponse) {}
+  rpc UpdateMe(UpdateMeRequest) returns (UpdateMeResponse) {}
+
+  rpc ListTags(ListTagsRequest) returns (ListTagsResponse) {}
+  rpc CreateTag(CreateTagRequest) returns (CreateTagResponse) {}
+  rpc UpdateTag(UpdateTagRequest) returns (UpdateTagResponse) {}
+  rpc DeleteTag(DeleteTagRequest) returns (DeleteTagResponse) {}
+  rpc SetTagHidden(SetTagHiddenRequest) returns (SetTagHiddenResponse) {}
+
+  rpc ListShares(ListSharesRequest) returns (ListSharesResponse) {}
+  rpc ShareTag(ShareTagRequest) returns (ShareTagResponse) {}
+  rpc UpdateShare(UpdateShareRequest) returns (UpdateShareResponse) {}
+  rpc RevokeShare(RevokeShareRequest) returns (RevokeShareResponse) {}
+
+  rpc ListTasks(ListTasksRequest) returns (ListTasksResponse) {}
+  rpc GetTask(GetTaskRequest) returns (GetTaskResponse) {}
+  rpc CreateTask(CreateTaskRequest) returns (CreateTaskResponse) {}
+  rpc UpdateTask(UpdateTaskRequest) returns (UpdateTaskResponse) {}
+  rpc ArchiveTask(ArchiveTaskRequest) returns (ArchiveTaskResponse) {}
+  rpc UnarchiveTask(UnarchiveTaskRequest) returns (UnarchiveTaskResponse) {}
+  rpc DeleteTask(DeleteTaskRequest) returns (DeleteTaskResponse) {}
+  rpc AddTaskTag(AddTaskTagRequest) returns (AddTaskTagResponse) {}
+  rpc RemoveTaskTag(RemoveTaskTagRequest) returns (RemoveTaskTagResponse) {}
+
+  rpc Complete(CompleteRequest) returns (ActionResponse) {}
+  rpc Skip(SkipRequest) returns (ActionResponse) {}
+  rpc CheckItem(CheckItemRequest) returns (ActionResponse) {}
+  rpc UncheckItem(UncheckItemRequest) returns (ActionResponse) {}
+  rpc Defer(DeferRequest) returns (ActionResponse) {}
+  rpc ClearDeferral(ClearDeferralRequest) returns (ActionResponse) {}
+  rpc SetCycleSlot(SetCycleSlotRequest) returns (ActionResponse) {}
+  rpc Pause(PauseRequest) returns (ActionResponse) {}
+  rpc Resume(ResumeRequest) returns (ActionResponse) {}
+
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse) {}
+  rpc AddNote(AddNoteRequest) returns (AddNoteResponse) {}
+  rpc EditEvent(EditEventRequest) returns (EditEventResponse) {}
+  rpc DeleteEvent(DeleteEventRequest) returns (DeleteEventResponse) {}
+
+  rpc Upcoming(UpcomingRequest) returns (UpcomingResponse) {}
+}
+
+// ---- Users ----
+
+message User {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  string picture_url = 4;
+  // IANA time zone, e.g. "America/Los_Angeles". Empty until set.
+  string time_zone = 5;
+}
+
+message GetMeRequest {}
+message GetMeResponse {
+  User user = 1;
+}
+
+message UpdateMeRequest {
+  string name = 1;
+  string time_zone = 2;
+}
+message UpdateMeResponse {
+  User user = 1;
+}
+
+// ---- Tags and sharing ----
+
+enum AccessLevel {
+  ACCESS_LEVEL_UNSPECIFIED = 0;
+  ACCESS_LEVEL_READ = 1;
+  ACCESS_LEVEL_DO = 2;
+  ACCESS_LEVEL_FULL = 3;
+}
+
+message Tag {
+  string id = 1;
+  string name = 2;
+  string color = 3;
+  User owner = 4;
+  AccessLevel my_access = 5;
+  // Hidden by me as a personal filter; doesn't change access.
+  bool hidden = 6;
+}
+
+message ListTagsRequest {}
+message ListTagsResponse {
+  repeated Tag tags = 1;
+}
+
+message CreateTagRequest {
+  string name = 1;
+  string color = 2;
+}
+message CreateTagResponse {
+  Tag tag = 1;
+}
+
+// Owner only.
+message UpdateTagRequest {
+  string id = 1;
+  string name = 2;
+  string color = 3;
+}
+message UpdateTagResponse {
+  Tag tag = 1;
+}
+
+// Owner only. Tasks left without tags become private to their creators.
+message DeleteTagRequest {
+  string id = 1;
+}
+message DeleteTagResponse {}
+
+message SetTagHiddenRequest {
+  string id = 1;
+  bool hidden = 2;
+}
+message SetTagHiddenResponse {}
+
+message Share {
+  string id = 1;
+  string tag_id = 2;
+  string email = 3;
+  // Unset until the invitee first logs in.
+  User user = 4;
+  AccessLevel level = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// Requires full access to the tag.
+message ListSharesRequest {
+  string tag_id = 1;
+}
+message ListSharesResponse {
+  repeated Share shares = 1;
+}
+
+// Requires full access to the tag. Sharing again with the same email changes
+// the level.
+message ShareTagRequest {
+  string tag_id = 1;
+  string email = 2;
+  AccessLevel level = 3;
+}
+message ShareTagResponse {
+  Share share = 1;
+}
+
+message UpdateShareRequest {
+  string id = 1;
+  AccessLevel level = 2;
+}
+message UpdateShareResponse {
+  Share share = 1;
+}
+
+// Requires full access to the tag, or the share to be your own (leaving a tag).
+message RevokeShareRequest {
+  string id = 1;
+}
+message RevokeShareResponse {}
+
+// ---- Tasks ----
+
+enum ScheduleKind {
+  SCHEDULE_KIND_UNSPECIFIED = 0;
+  // Every N units after each completion.
+  SCHEDULE_KIND_INTERVAL = 1;
+  // Calendar dates; misses are recorded and skipped.
+  SCHEDULE_KIND_FIXED = 2;
+  // A rotation of slots on calendar dates; misses carry over.
+  SCHEDULE_KIND_CYCLE = 3;
+  // Once, with an optional due date.
+  SCHEDULE_KIND_ONCE = 4;
+}
+
+enum IntervalUnit {
+  INTERVAL_UNIT_UNSPECIFIED = 0;
+  INTERVAL_UNIT_DAYS = 1;
+  INTERVAL_UNIT_WEEKS = 2;
+  INTERVAL_UNIT_MONTHS = 3;
+  INTERVAL_UNIT_YEARS = 4;
+}
+
+message Schedule {
+  ScheduleKind kind = 1;
+  // Interval tasks.
+  int32 interval_n = 2;
+  IntervalUnit interval_unit = 3;
+  // Fixed and cycle tasks: a single RRULE line, e.g. "FREQ=WEEKLY;BYDAY=SA",
+  // and the date it starts from.
+  string rrule = 4;
+  string rrule_start = 5;
+}
+
+message Slot {
+  // Empty when adding a new slot.
+  string id = 1;
+  string title = 2;
+  string description = 3;
+}
+
+message ChecklistItem {
+  // Empty when adding a new item.
+  string id = 1;
+  string title = 2;
+}
+
+message Check {
+  string item_id = 1;
+  string date = 2;
+  User user = 3;
+}
+
+// The current, pending occurrence.
+message TaskState {
+  string due = 1;
+  bool deferred = 2;
+  string deferred_from = 3;
+  bool paused = 4;
+  string pause_until = 5;
+  string current_slot_id = 6;
+  // A once task that was completed, or a recurrence that has ended.
+  bool done = 7;
+  repeated Check checks = 8;
+}
+
+message Projected {
+  string due = 1;
+  string slot_id = 2;
+}
+
+message Task {
+  string id = 1;
+  string title = 2;
+  // Markdown.
+  string description = 3;
+  // 1 high, 2 normal, 3 low.
+  int32 priority = 4;
+  // Days before the due date the task shows in Upcoming; 0 = default.
+  int32 lead_days = 5;
+  string time_zone = 6;
+  Schedule schedule = 7;
+  // Cycle tasks: the rotation, in order.
+  repeated Slot slots = 8;
+  repeated ChecklistItem checklist = 9;
+  repeated string tag_ids = 10;
+
+  User creator = 11;
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
+  // Pass back on changes; a stale version fails with ABORTED.
+  int64 version = 14;
+  bool archived = 15;
+
+  TaskState state = 16;
+
+  AccessLevel my_access = 17;
+  double period_days = 18;
+  int32 effective_lead_days = 19;
+  repeated Projected projected = 20;
+}
+
+// The editable fields of a task.
+message TaskInput {
+  string title = 1;
+  string description = 2;
+  int32 priority = 3;
+  int32 lead_days = 4;
+  // Defaults to your time zone.
+  string time_zone = 5;
+  Schedule schedule = 6;
+  repeated Slot slots = 7;
+  repeated ChecklistItem checklist = 8;
+}
+
+message ListTasksRequest {
+  // Only tasks with any of these tags.
+  repeated string tag_ids = 1;
+  bool include_archived = 2;
+  // Include done once tasks and ended recurrences.
+  bool include_done = 3;
+  // Include tasks whose visible tags are all hidden.
+  bool include_hidden = 4;
+  // Only tasks changed after this time.
+  google.protobuf.Timestamp updated_since = 5;
+}
+message ListTasksResponse {
+  repeated Task tasks = 1;
+}
+
+message GetTaskRequest {
+  string id = 1;
+}
+message GetTaskResponse {
+  Task task = 1;
+}
+
+// Adding a tag requires full access to it.
+message CreateTaskRequest {
+  TaskInput task = 1;
+  repeated string tag_ids = 2;
+  // Interval tasks: the first due date (default today). Once tasks: the
+  // optional due date. Ignored for fixed and cycle tasks.
+  string first_due = 3;
+}
+message CreateTaskResponse {
+  Task task = 1;
+}
+
+// Replaces all editable fields. Slots and checklist items without an id are
+// added; existing ones missing from the list are removed.
+message UpdateTaskRequest {
+  string id = 1;
+  int64 version = 2;
+  TaskInput task = 3;
+}
+message UpdateTaskResponse {
+  Task task = 1;
+}
+
+message ArchiveTaskRequest {
+  string id = 1;
+}
+message ArchiveTaskResponse {
+  Task task = 1;
+}
+
+message UnarchiveTaskRequest {
+  string id = 1;
+}
+message UnarchiveTaskResponse {
+  Task task = 1;
+}
+
+// Permanent, including history. Requires full access.
+message DeleteTaskRequest {
+  string id = 1;
+}
+message DeleteTaskResponse {}
+
+// Requires full access to the task and the tag.
+message AddTaskTagRequest {
+  string task_id = 1;
+  string tag_id = 2;
+}
+message AddTaskTagResponse {
+  Task task = 1;
+}
+
+message RemoveTaskTagRequest {
+  string task_id = 1;
+  string tag_id = 2;
+}
+message RemoveTaskTagResponse {
+  Task task = 1;
+}
+
+// ---- Actions ----
+// Each takes an optional version (0 = don't check) and returns the updated task
+// with the events it recorded.
+
+message ActionResponse {
+  Task task = 1;
+  repeated Event events = 2;
+}
+
+message CompleteRequest {
+  string id = 1;
+  int64 version = 2;
+  string note = 3;
+  // Cycles: complete as this slot; the rotation continues after it.
+  string as_slot_id = 4;
+  // Complete even if checklist items are unchecked.
+  bool force = 5;
+}
+
+message SkipRequest {
+  string id = 1;
+  int64 version = 2;
+  string note = 3;
+}
+
+// Checking the last item completes the task.
+message CheckItemRequest {
+  string id = 1;
+  int64 version = 2;
+  string item_id = 3;
+  string note = 4;
+}
+
+message UncheckItemRequest {
+  string id = 1;
+  int64 version = 2;
+  string item_id = 3;
+}
+
+message DeferRequest {
+  string id = 1;
+  int64 version = 2;
+  string to = 3;
+  string note = 4;
+}
+
+message ClearDeferralRequest {
+  string id = 1;
+  int64 version = 2;
+}
+
+message SetCycleSlotRequest {
+  string id = 1;
+  int64 version = 2;
+  string slot_id = 3;
+  string note = 4;
+}
+
+// Requires full access.
+message PauseRequest {
+  string id = 1;
+  int64 version = 2;
+  // Optional automatic resume date.
+  string until = 3;
+  string note = 4;
+}
+
+// Requires full access.
+message ResumeRequest {
+  string id = 1;
+  int64 version = 2;
+  string note = 3;
+}
+
+// ---- History ----
+
+enum EventKind {
+  EVENT_KIND_UNSPECIFIED = 0;
+  EVENT_KIND_DONE = 1;
+  EVENT_KIND_MISSED = 2;
+  EVENT_KIND_SKIPPED = 3;
+  EVENT_KIND_DEFERRED = 4;
+  EVENT_KIND_DEFERRAL_CLEARED = 5;
+  EVENT_KIND_PAUSED = 6;
+  EVENT_KIND_RESUMED = 7;
+  EVENT_KIND_SLOT_SET = 8;
+  EVENT_KIND_NOTE = 9;
+  EVENT_KIND_SCHEDULE_CHANGED = 10;
+}
+
+message Event {
+  string id = 1;
+  string task_id = 2;
+  EventKind kind = 3;
+  // Unset for events the system recorded (misses, automatic resumes).
+  User user = 4;
+  // The date it counts for.
+  string date = 5;
+  // The scheduled due date of the occurrence it refers to.
+  string occurrence = 6;
+  string slot_id = 7;
+  // Skipped: absorbed by a deferral.
+  bool merged = 8;
+  repeated string checked_item_ids = 9;
+  repeated string unchecked_item_ids = 10;
+  // Deferrals: old and new due dates. Pauses: the automatic resume date (to).
+  string from = 11;
+  string to = 12;
+  // Markdown.
+  string note = 13;
+  google.protobuf.Timestamp created_at = 14;
+  google.protobuf.Timestamp edited_at = 15;
+}
+
+message ListEventsRequest {
+  string task_id = 1;
+  // Only events for this cycle slot.
+  string slot_id = 2;
+  // Page size; default 50.
+  int32 limit = 3;
+  // From a previous response's next_page_token.
+  string page_token = 4;
+}
+message ListEventsResponse {
+  // Newest first.
+  repeated Event events = 1;
+  string next_page_token = 2;
+}
+
+// Requires do access.
+message AddNoteRequest {
+  string task_id = 1;
+  string note = 2;
+  // Defaults to today.
+  string date = 3;
+}
+message AddNoteResponse {
+  Event event = 1;
+}
+
+// Do access for your own events and system events (e.g. marking a miss as
+// done); full access for anyone's.
+message EditEventRequest {
+  string id = 1;
+  // Unset fields are left alone.
+  optional string date = 2;
+  optional string note = 3;
+  // Turn a missed event into a done event.
+  bool mark_done = 4;
+}
+message EditEventResponse {
+  Event event = 1;
+  Task task = 2;
+}
+
+message DeleteEventRequest {
+  string id = 1;
+}
+message DeleteEventResponse {
+  Task task = 1;
+}
+
+// ---- Upcoming ----
+
+enum UrgencyGroup {
+  URGENCY_GROUP_UNSPECIFIED = 0;
+  URGENCY_GROUP_OVERDUE = 1;
+  URGENCY_GROUP_TODAY = 2;
+  URGENCY_GROUP_SOON = 3;
+}
+
+message UpcomingItem {
+  Task task = 1;
+  UrgencyGroup group = 2;
+  // Negative when overdue.
+  int32 days_until = 3;
+  double score = 4;
+}
+
+message UpcomingRequest {
+  repeated string tag_ids = 1;
+  bool include_hidden = 2;
+}
+message UpcomingResponse {
+  // Sorted by group, then score (highest first).
+  repeated UpcomingItem items = 1;
+}

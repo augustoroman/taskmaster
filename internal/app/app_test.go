@@ -1,0 +1,490 @@
+package app
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/augustoroman/taskmaster/internal/engine"
+	"github.com/augustoroman/taskmaster/internal/store"
+)
+
+type fixture struct {
+	t   *testing.T
+	ctx context.Context
+	svc *Service
+	now time.Time
+	// admin can log in without an invitation.
+	admin *store.User
+}
+
+func newFixture(t *testing.T) *fixture {
+	db, err := store.Open(":memory:")
+	require.NoError(t, err)
+	t.Cleanup(func() { db.Close() })
+	f := &fixture{t: t, ctx: context.Background()}
+	// Thursday, Oct 1, 2026, 9am Pacific.
+	f.now = time.Date(2026, 10, 1, 16, 0, 0, 0, time.UTC)
+	f.svc = New(db, []string{"Admin@Example.com"}, func() time.Time { return f.now })
+	f.admin = f.login("admin@example.com")
+	f.admin, err = f.svc.UpdateMe(f.ctx, f.admin, "", "America/Los_Angeles")
+	require.NoError(t, err)
+	return f
+}
+
+func (f *fixture) login(email string) *store.User {
+	u, err := f.svc.Login(f.ctx, email, "", "")
+	require.NoError(f.t, err)
+	return u
+}
+
+func (f *fixture) advance(days int) { f.now = f.now.AddDate(0, 0, days) }
+
+func (f *fixture) tag(u *store.User, name string) string {
+	tag, err := f.svc.CreateTag(f.ctx, u, name, "")
+	require.NoError(f.t, err)
+	return tag.ID
+}
+
+func (f *fixture) share(u *store.User, tagID, email string, level store.Level) {
+	_, err := f.svc.ShareTag(f.ctx, u, tagID, email, level)
+	require.NoError(f.t, err)
+}
+
+func (f *fixture) task(u *store.User, in TaskInput, tags ...string) *TaskView {
+	if in.Title == "" {
+		in.Title = "task"
+	}
+	v, err := f.svc.CreateTask(f.ctx, u, in, tags, engine.Date{})
+	require.NoError(f.t, err)
+	return v
+}
+
+func d(s string) engine.Date { return engine.MustParseDate(s) }
+
+var trash = TaskInput{Title: "Trash", Kind: engine.KindFixed, RRule: "FREQ=WEEKLY;BYDAY=TU", RRuleStart: d("2026-01-06")}
+var filter = TaskInput{Title: "HVAC filter", Kind: engine.KindInterval, Interval: engine.Interval{N: 3, Unit: engine.Months}}
+
+func TestLoginInviteOnly(t *testing.T) {
+	f := newFixture(t)
+	assert.Equal(t, "admin@example.com", f.admin.Email)
+
+	_, err := f.svc.Login(f.ctx, "stranger@example.com", "", "")
+	assert.ErrorIs(t, err, ErrNotInvited)
+
+	// Invited by email before they have an account.
+	house := f.tag(f.admin, "House")
+	f.share(f.admin, house, "Sam@Example.com", store.LevelDo)
+	sam, err := f.svc.Login(f.ctx, "sam@example.com", "Sam", "https://pic")
+	require.NoError(t, err)
+	assert.Equal(t, "Sam", sam.Name)
+
+	tags, err := f.svc.ListTags(f.ctx, sam)
+	require.NoError(t, err)
+	require.Len(t, tags, 1)
+	assert.Equal(t, store.LevelDo, tags[0].Level)
+	assert.Equal(t, f.admin.ID, tags[0].Owner.ID)
+
+	// Returning users get in, and their profile refreshes.
+	again, err := f.svc.Login(f.ctx, "sam@example.com", "Samantha", "")
+	require.NoError(t, err)
+	assert.Equal(t, sam.ID, again.ID)
+	assert.Equal(t, "Samantha", again.Name)
+}
+
+func TestAccessLevels(t *testing.T) {
+	f := newFixture(t)
+	house := f.tag(f.admin, "House")
+	reader, doer, full := f.inviteAll(house)
+	task := f.task(f.admin, filter, house)
+	private := f.task(f.admin, filter)
+
+	// Untagged tasks are private to the creator.
+	for _, u := range []*store.User{reader, doer, full} {
+		_, err := f.svc.GetTask(f.ctx, u, private.ID)
+		assert.ErrorIs(t, err, ErrNotFound)
+		got, err := f.svc.GetTask(f.ctx, u, task.ID)
+		require.NoError(t, err)
+		assert.Equal(t, []string{house}, got.VisibleTagIDs)
+	}
+
+	a := Action{TaskID: task.ID}
+	_, err := f.svc.Complete(f.ctx, reader, a, "", false)
+	assert.ErrorIs(t, err, ErrPermission)
+	_, err = f.svc.AddNote(f.ctx, reader, task.ID, "hi", engine.Date{})
+	assert.ErrorIs(t, err, ErrPermission)
+
+	_, err = f.svc.Complete(f.ctx, doer, a, "", false)
+	assert.NoError(t, err)
+	_, err = f.svc.Pause(f.ctx, doer, a, engine.Date{})
+	assert.ErrorIs(t, err, ErrPermission)
+	_, err = f.svc.ArchiveTask(f.ctx, doer, task.ID)
+	assert.ErrorIs(t, err, ErrPermission)
+	_, err = f.svc.UpdateTask(f.ctx, doer, task.ID, task.Version, filter)
+	assert.ErrorIs(t, err, ErrPermission)
+
+	_, err = f.svc.Pause(f.ctx, full, a, engine.Date{})
+	assert.NoError(t, err)
+
+	// The highest level across a task's tags wins.
+	other := f.tag(f.admin, "Other")
+	f.share(f.admin, other, "reader@example.com", store.LevelFull)
+	both := f.task(f.admin, filter, house, other)
+	got, err := f.svc.GetTask(f.ctx, reader, both.ID)
+	require.NoError(t, err)
+	assert.Equal(t, store.LevelFull, got.Level)
+}
+
+// inviteAll shares tag with a reader, a doer and a full-control user.
+func (f *fixture) inviteAll(tag string) (reader, doer, full *store.User) {
+	f.share(f.admin, tag, "reader@example.com", store.LevelRead)
+	f.share(f.admin, tag, "doer@example.com", store.LevelDo)
+	f.share(f.admin, tag, "full@example.com", store.LevelFull)
+	return f.login("reader@example.com"), f.login("doer@example.com"), f.login("full@example.com")
+}
+
+func TestTaggingRules(t *testing.T) {
+	f := newFixture(t)
+	house := f.tag(f.admin, "House")
+	_, _, full := f.inviteAll(house)
+	mine := f.tag(full, "Mine")
+
+	task := f.task(f.admin, filter, house)
+	// Full on the task and on the tag: can add it (sharing the task with Mine's audience).
+	got, err := f.svc.AddTaskTag(f.ctx, full, task.ID, mine)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{house, mine}, got.VisibleTagIDs)
+	// The admin can't see "Mine", so it isn't listed for them.
+	adminView, err := f.svc.GetTask(f.ctx, f.admin, task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, []string{house}, adminView.VisibleTagIDs)
+
+	// Can't add a tag you don't have full access to.
+	_, err = f.svc.AddTaskTag(f.ctx, f.admin, task.ID, mine)
+	assert.ErrorIs(t, err, ErrNotFound)
+	_, err = f.svc.CreateTask(f.ctx, f.admin, filter, []string{mine}, engine.Date{})
+	assert.ErrorIs(t, err, ErrNotFound)
+
+	// Removing house cuts off everyone else, but the creator keeps full control.
+	_, err = f.svc.RemoveTaskTag(f.ctx, full, task.ID, house)
+	require.NoError(t, err)
+	_, err = f.svc.RemoveTaskTag(f.ctx, full, task.ID, mine)
+	require.NoError(t, err)
+	_, err = f.svc.GetTask(f.ctx, full, task.ID)
+	assert.ErrorIs(t, err, ErrNotFound)
+	creatorView, err := f.svc.GetTask(f.ctx, f.admin, task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, store.LevelFull, creatorView.Level)
+}
+
+func TestSharing(t *testing.T) {
+	f := newFixture(t)
+	house := f.tag(f.admin, "House")
+	_, doer, full := f.inviteAll(house)
+
+	// Full-control users can share; others can't see the shares.
+	_, err := f.svc.ShareTag(f.ctx, full, house, "new@example.com", store.LevelRead)
+	require.NoError(t, err)
+	_, err = f.svc.ListShares(f.ctx, doer, house)
+	assert.ErrorIs(t, err, ErrPermission)
+	shares, err := f.svc.ListShares(f.ctx, full, house)
+	require.NoError(t, err)
+	assert.Len(t, shares, 4)
+
+	// Sharing again changes the level.
+	sv, err := f.svc.ShareTag(f.ctx, f.admin, house, "doer@example.com", store.LevelFull)
+	require.NoError(t, err)
+	assert.Equal(t, doer.ID, sv.User.ID)
+	shares, _ = f.svc.ListShares(f.ctx, full, house)
+	assert.Len(t, shares, 4)
+
+	_, err = f.svc.ShareTag(f.ctx, full, house, "admin@example.com", store.LevelRead)
+	assert.Error(t, err, "can't share with the owner")
+	_, err = f.svc.ShareTag(f.ctx, full, house, "Bob <bob@example.com>", store.LevelRead)
+	assert.Error(t, err)
+
+	// Only the owner renames or deletes.
+	_, err = f.svc.UpdateTag(f.ctx, full, house, "Home", "")
+	assert.ErrorIs(t, err, ErrPermission)
+	assert.ErrorIs(t, f.svc.DeleteTag(f.ctx, full, house), ErrPermission)
+
+	// Leaving a tag.
+	require.NoError(t, f.svc.RevokeShare(f.ctx, doer, sv.ID))
+	tags, _ := f.svc.ListTags(f.ctx, doer)
+	assert.Empty(t, tags)
+
+	_, err = f.svc.CreateTag(f.ctx, f.admin, "house ", "")
+	assert.NoError(t, err, "names are case-sensitive per owner")
+	_, err = f.svc.CreateTag(f.ctx, f.admin, "House", "")
+	var invalidErr *InvalidError
+	assert.ErrorAs(t, err, &invalidErr)
+}
+
+func TestMissesRecordedOnRead(t *testing.T) {
+	f := newFixture(t)
+	task := f.task(f.admin, trash)
+	assert.Equal(t, d("2026-10-06"), task.State.Due)
+
+	f.advance(14) // Oct 15
+	got, err := f.svc.GetTask(f.ctx, f.admin, task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-10-20"), got.State.Due)
+
+	events, _, err := f.svc.ListEvents(f.ctx, f.admin, task.ID, "", 0, "")
+	require.NoError(t, err)
+	require.Len(t, events, 2)
+	assert.Equal(t, engine.EventMissed, events[0].Kind)
+	assert.Equal(t, d("2026-10-13"), events[0].Date)
+	assert.Nil(t, events[0].User, "system event")
+
+	// Change a miss to done: history only.
+	missed := events[1]
+	_, tv, err := f.svc.EditEvent(f.ctx, f.admin, missed.ID, EventEdit{MarkDone: true})
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-10-20"), tv.State.Due)
+	events, _, _ = f.svc.ListEvents(f.ctx, f.admin, task.ID, "", 0, "")
+	assert.Equal(t, engine.EventDone, events[1].Kind)
+	assert.Equal(t, f.admin.ID, events[1].User.ID)
+}
+
+func TestSweep(t *testing.T) {
+	f := newFixture(t)
+	f.task(f.admin, trash)
+	f.task(f.admin, filter)
+	n, err := f.svc.Sweep(f.ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 0, n)
+	f.advance(7)
+	n, err = f.svc.Sweep(f.ctx)
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+	n, _ = f.svc.Sweep(f.ctx)
+	assert.Equal(t, 0, n, "idempotent")
+}
+
+func TestBackdateCompletion(t *testing.T) {
+	f := newFixture(t)
+	task := f.task(f.admin, filter)
+	f.advance(9) // Oct 10
+	res, err := f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID, Note: "used the MERV 13"}, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, d("2027-01-10"), res.Task.State.Due)
+	require.Len(t, res.Events, 1)
+	assert.Equal(t, "used the MERV 13", res.Events[0].Note)
+
+	// "Actually I did it last Tuesday."
+	lastTuesday := d("2026-10-06")
+	_, tv, err := f.svc.EditEvent(f.ctx, f.admin, res.Events[0].ID, EventEdit{Date: &lastTuesday})
+	require.NoError(t, err)
+	assert.Equal(t, d("2027-01-06"), tv.State.Due)
+
+	future := d("2026-10-11")
+	_, _, err = f.svc.EditEvent(f.ctx, f.admin, res.Events[0].ID, EventEdit{Date: &future})
+	assert.Error(t, err)
+
+	// Deleting the only completion leaves the due date alone.
+	tv, err = f.svc.DeleteEvent(f.ctx, f.admin, res.Events[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, d("2027-01-06"), tv.State.Due)
+}
+
+func TestEditEventPermissions(t *testing.T) {
+	f := newFixture(t)
+	house := f.tag(f.admin, "House")
+	_, doer, _ := f.inviteAll(house)
+	task := f.task(f.admin, filter, house)
+	res, err := f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID}, "", false)
+	require.NoError(t, err)
+	note := "edited"
+	_, _, err = f.svc.EditEvent(f.ctx, doer, res.Events[0].ID, EventEdit{Note: &note})
+	assert.ErrorIs(t, err, ErrPermission, "do access can't edit others' events")
+
+	own, err := f.svc.AddNote(f.ctx, doer, task.ID, "need a new filter size", engine.Date{})
+	require.NoError(t, err)
+	_, _, err = f.svc.EditEvent(f.ctx, doer, own.ID, EventEdit{Note: &note})
+	assert.NoError(t, err)
+}
+
+func TestVersionConflict(t *testing.T) {
+	f := newFixture(t)
+	task := f.task(f.admin, filter)
+	_, err := f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID, Version: task.Version}, "", false)
+	require.NoError(t, err)
+	// A second person acting on the same stale version.
+	_, err = f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID, Version: task.Version}, "", false)
+	assert.ErrorIs(t, err, ErrConflict)
+	_, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, task.Version, filter)
+	assert.ErrorIs(t, err, ErrConflict)
+}
+
+func TestVersionNotStaleAfterCatchup(t *testing.T) {
+	f := newFixture(t)
+	task := f.task(f.admin, trash)
+	f.advance(7) // a miss gets recorded on this read
+	got, err := f.svc.GetTask(f.ctx, f.admin, task.ID)
+	require.NoError(t, err)
+	_, err = f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID, Version: got.Version}, "", false)
+	assert.NoError(t, err)
+}
+
+func TestChecklist(t *testing.T) {
+	f := newFixture(t)
+	house := f.tag(f.admin, "House")
+	_, doer, _ := f.inviteAll(house)
+	in := filter
+	in.Title = "Smoke detector batteries"
+	in.Checklist = []store.ChecklistItem{{Title: "Hall"}, {Title: "Garage"}}
+	task := f.task(f.admin, in, house)
+	hall, garage := task.Checklist[0].ID, task.Checklist[1].ID
+
+	res, err := f.svc.CheckItem(f.ctx, doer, Action{TaskID: task.ID, Note: "used 9V from drawer"}, hall)
+	require.NoError(t, err)
+	assert.Equal(t, doer.ID, res.Task.CheckedBy[engine.ItemID(hall)])
+	require.Len(t, res.Events, 1)
+	assert.Equal(t, store.EventNote, res.Events[0].Kind)
+	assert.Equal(t, hall, res.Events[0].Data.ItemID)
+
+	_, err = f.svc.Complete(f.ctx, doer, Action{TaskID: task.ID}, "", false)
+	var actionErr *ActionError
+	assert.ErrorAs(t, err, &actionErr)
+	assert.ErrorIs(t, err, engine.ErrChecklistIncomplete)
+
+	f.advance(3)
+	res, err = f.svc.CheckItem(f.ctx, f.admin, Action{TaskID: task.ID}, garage)
+	require.NoError(t, err)
+	require.Len(t, res.Events, 1)
+	assert.Equal(t, engine.EventDone, res.Events[0].Kind)
+	assert.Equal(t, d("2027-01-04"), res.Task.State.Due)
+	assert.Empty(t, res.Task.CheckedBy)
+
+	// Removing an item via update keeps it for history but drops it from the checklist.
+	got, err := f.svc.GetTask(f.ctx, f.admin, task.ID)
+	require.NoError(t, err)
+	in.Checklist = []store.ChecklistItem{{ID: garage, Title: "Garage"}, {Title: "Attic"}}
+	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, in)
+	require.NoError(t, err)
+	require.Len(t, updated.Checklist, 3)
+	assert.True(t, updated.Checklist[2].Removed)
+	assert.Equal(t, hall, updated.Checklist[2].ID)
+	assert.Len(t, updated.Def.Checklist, 2)
+}
+
+func TestScheduleChange(t *testing.T) {
+	f := newFixture(t)
+	task := f.task(f.admin, filter)
+	_, err := f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID}, "", false)
+	require.NoError(t, err)
+	got, _ := f.svc.GetTask(f.ctx, f.admin, task.ID)
+	assert.Equal(t, d("2027-01-01"), got.State.Due)
+
+	in := filter
+	in.Interval = engine.Interval{N: 1, Unit: engine.Months}
+	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, in)
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-11-01"), updated.State.Due, "recomputed from the last completion")
+
+	events, _, _ := f.svc.ListEvents(f.ctx, f.admin, task.ID, "", 0, "")
+	assert.Equal(t, store.EventScheduleChanged, events[0].Kind)
+}
+
+func TestCycleSlots(t *testing.T) {
+	f := newFixture(t)
+	in := TaskInput{
+		Title: "Weekend chores", Kind: engine.KindCycle, RRule: "FREQ=WEEKLY;BYDAY=SA", RRuleStart: d("2026-01-03"),
+		Slots: []store.Slot{{Title: "Vacuum bedrooms"}, {Title: "Clean bathrooms"}},
+	}
+	task := f.task(f.admin, in)
+	bedrooms, bathrooms := task.Slots[0].ID, task.Slots[1].ID
+	assert.Equal(t, engine.SlotID(bedrooms), task.State.Slot)
+	assert.Equal(t, d("2026-10-03"), task.State.Due)
+
+	res, err := f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID}, bathrooms, false)
+	require.NoError(t, err)
+	assert.Equal(t, bathrooms, res.Events[0].SlotID)
+	assert.Equal(t, engine.SlotID(bedrooms), res.Task.State.Slot)
+
+	// Removing the current slot moves to the first remaining one.
+	in.Slots = []store.Slot{{ID: bathrooms, Title: "Clean bathrooms"}}
+	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, res.Task.Version, in)
+	require.NoError(t, err)
+	assert.Equal(t, engine.SlotID(bathrooms), updated.State.Slot)
+
+	// Slot history.
+	events, _, err := f.svc.ListEvents(f.ctx, f.admin, task.ID, bathrooms, 0, "")
+	require.NoError(t, err)
+	assert.Len(t, events, 1)
+}
+
+func TestUpcomingAndHidden(t *testing.T) {
+	f := newFixture(t)
+	house := f.tag(f.admin, "House")
+	yearly := f.task(f.admin, TaskInput{Title: "yearly", Kind: engine.KindInterval, Interval: engine.Interval{N: 1, Unit: engine.Years}}, house)
+	f.task(f.admin, TaskInput{Title: "yearly late", Kind: engine.KindInterval, Interval: engine.Interval{N: 1, Unit: engine.Years}}, house)
+	f.task(f.admin, TaskInput{Title: "no tags", Kind: engine.KindOnce})
+	f.task(f.admin, TaskInput{Title: "weekly", Kind: engine.KindInterval, Interval: engine.Interval{N: 1, Unit: engine.Weeks}})
+
+	// Everything is due today (Oct 1); defer "yearly" by a week.
+	_, err := f.svc.Defer(f.ctx, f.admin, Action{TaskID: yearly.ID}, d("2026-10-08"))
+	require.NoError(t, err)
+	// On Oct 3, both undeferred tasks are 2 days overdue, but that's much
+	// later for a weekly task (lead 2 days) than a yearly one (lead 14).
+	f.advance(2)
+	items, err := f.svc.Upcoming(f.ctx, f.admin, nil, false)
+	require.NoError(t, err)
+	var titles []string
+	for _, it := range items {
+		titles = append(titles, it.Task.Title)
+	}
+	assert.Equal(t, []string{"weekly", "yearly late", "yearly"}, titles)
+	assert.Equal(t, engine.GroupOverdue, items[0].Urgency.Group)
+	assert.Equal(t, engine.GroupSoon, items[2].Urgency.Group)
+
+	require.NoError(t, f.svc.SetTagHidden(f.ctx, f.admin, house, true))
+	items, _ = f.svc.Upcoming(f.ctx, f.admin, nil, false)
+	assert.Len(t, items, 1, "tasks whose tags are all hidden drop out; untagged ones stay")
+	items, _ = f.svc.Upcoming(f.ctx, f.admin, nil, true)
+	assert.Len(t, items, 3)
+}
+
+func TestArchive(t *testing.T) {
+	f := newFixture(t)
+	task := f.task(f.admin, trash)
+	_, err := f.svc.ArchiveTask(f.ctx, f.admin, task.ID)
+	require.NoError(t, err)
+	list, _ := f.svc.ListTasks(f.ctx, f.admin, TaskFilter{})
+	assert.Empty(t, list)
+
+	f.advance(30)
+	_, err = f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID}, "", false)
+	assert.Error(t, err)
+	got, err := f.svc.UnarchiveTask(f.ctx, f.admin, task.ID)
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-11-03"), got.State.Due)
+	events, _, _ := f.svc.ListEvents(f.ctx, f.admin, task.ID, "", 0, "")
+	assert.Empty(t, events, "no misses recorded while archived")
+
+	require.NoError(t, f.svc.DeleteTask(f.ctx, f.admin, task.ID))
+	_, err = f.svc.GetTask(f.ctx, f.admin, task.ID)
+	assert.ErrorIs(t, err, ErrNotFound)
+}
+
+func TestEventPaging(t *testing.T) {
+	f := newFixture(t)
+	task := f.task(f.admin, filter)
+	for i := 0; i < 5; i++ {
+		_, err := f.svc.AddNote(f.ctx, f.admin, task.ID, "note", engine.Date{})
+		require.NoError(t, err)
+	}
+	page1, token, err := f.svc.ListEvents(f.ctx, f.admin, task.ID, "", 3, "")
+	require.NoError(t, err)
+	assert.Len(t, page1, 3)
+	require.NotEmpty(t, token)
+	page2, token, err := f.svc.ListEvents(f.ctx, f.admin, task.ID, "", 3, token)
+	require.NoError(t, err)
+	assert.Len(t, page2, 2)
+	assert.Empty(t, token)
+	assert.NotEqual(t, page1[2].ID, page2[0].ID)
+}
