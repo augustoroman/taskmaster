@@ -30,7 +30,22 @@ type Action struct {
 	// Version, if non-zero, must match the task's current version.
 	Version int64
 	Note    string
+	// Offline is set for actions a client queued while offline.
+	Offline *Offline
 }
+
+// Offline describes when a queued action was done and what it was for.
+type Offline struct {
+	// Occurrence is the scheduled due date of the occurrence the action was
+	// for (TaskState.due, or deferred_from if deferred).
+	Occurrence engine.Date
+	// Date is when it was done.
+	Date engine.Date
+}
+
+// ErrStale means an offline action couldn't be applied because the task had
+// moved on (for example, someone else did it first).
+var ErrStale = errors.New("the task changed before this could be synced")
 
 const maxNote = 20_000
 
@@ -42,6 +57,9 @@ type actOptions struct {
 	// noteItem is the checklist item a standalone note is about.
 	noteItem string
 	apply    func(v *TaskView) (engine.State, []engine.Event, error)
+	// onStale handles an offline action whose occurrence has passed; nil
+	// means ErrStale.
+	onStale func(tx *store.Tx, v *TaskView, off *Offline) (*ActionResult, error)
 }
 
 func (s *Service) act(ctx context.Context, u *store.User, a Action, opt actOptions) (*ActionResult, error) {
@@ -54,9 +72,20 @@ func (s *Service) act(ctx context.Context, u *store.User, a Action, opt actOptio
 	}
 	var result *ActionResult
 	err := s.db.Tx(ctx, func(tx *store.Tx) error {
-		v, err := s.loadTask(tx, u, a.TaskID, opt.min)
+		var asOf engine.Date
+		if off := a.Offline; off != nil {
+			if off.Date.IsZero() || off.Occurrence.IsZero() {
+				return invalid("offline actions need a date and an occurrence")
+			}
+			asOf = off.Date
+		}
+		v, err := s.loadTaskAt(tx, u, a.TaskID, opt.min, asOf)
 		if err != nil {
 			return err
+		}
+		realToday := s.today(v.TZ)
+		if asOf.After(realToday) {
+			return invalid("date is in the future")
 		}
 		if a.Version != 0 && a.Version != v.loadedVersion {
 			return ErrConflict
@@ -64,10 +93,30 @@ func (s *Service) act(ctx context.Context, u *store.User, a Action, opt actOptio
 		if !v.ArchivedAt.IsZero() {
 			return invalid("task is archived")
 		}
+		if off := a.Offline; off != nil && v.State.Occurrence() != off.Occurrence {
+			if opt.onStale == nil {
+				return &ActionError{ErrStale}
+			}
+			if result, err = opt.onStale(tx, v, off); err != nil {
+				return err
+			}
+			if _, err := s.catchup(tx, v.Task); err != nil {
+				return err
+			}
+			v.Today = realToday
+			return s.finish(tx, u, v)
+		}
 		prevState, prevCheckedBy := v.State, maps.Clone(v.CheckedBy)
 		state, events, err := opt.apply(v)
 		if err != nil {
 			return engineError(err)
+		}
+		if !asOf.IsZero() {
+			// Replayed as of when it was done; now bring it up to today.
+			var more []engine.Event
+			state, more = v.Def.Catchup(state, realToday)
+			events = append(events, more...)
+			v.Today = realToday
 		}
 		now := s.now()
 
@@ -162,12 +211,53 @@ func engineError(err error) error {
 	return &ActionError{err}
 }
 
-// Complete marks the current occurrence done today. asSlot completes a cycle
-// as a different slot; force completes despite unchecked checklist items.
+// Complete marks the current occurrence done today (or, for an offline
+// action, on the day it was done). asSlot completes a cycle as a different
+// slot; force completes despite unchecked checklist items.
+//
+// An offline completion for an occurrence that has since passed turns its
+// "missed" entry into "done", or does nothing if it was already done.
 func (s *Service) Complete(ctx context.Context, u *store.User, a Action, asSlot string, force bool) (*ActionResult, error) {
-	return s.act(ctx, u, a, actOptions{noteOn: engine.EventDone, apply: func(v *TaskView) (engine.State, []engine.Event, error) {
-		return v.Def.Complete(v.State, v.Today, engine.CompleteOptions{AsSlot: engine.SlotID(asSlot), Force: force})
-	}})
+	return s.act(ctx, u, a, actOptions{
+		noteOn: engine.EventDone,
+		apply: func(v *TaskView) (engine.State, []engine.Event, error) {
+			return v.Def.Complete(v.State, v.Today, engine.CompleteOptions{AsSlot: engine.SlotID(asSlot), Force: force, Date: v.Today})
+		},
+		onStale: func(tx *store.Tx, v *TaskView, off *Offline) (*ActionResult, error) {
+			return s.completePassed(tx, u, v, off, a.Note)
+		},
+	})
+}
+
+// completePassed applies an offline completion to an occurrence that has
+// already passed.
+func (s *Service) completePassed(tx *store.Tx, u *store.User, v *TaskView, off *Offline, note string) (*ActionResult, error) {
+	done, err := tx.FindEvent(v.ID, engine.EventDone, off.Occurrence)
+	if err != nil {
+		return nil, err
+	}
+	if done != nil {
+		return &ActionResult{Task: v}, nil // already done (e.g. this was a retry)
+	}
+	missed, err := tx.FindEvent(v.ID, engine.EventMissed, off.Occurrence)
+	if err != nil {
+		return nil, err
+	}
+	if missed == nil {
+		return nil, &ActionError{ErrStale}
+	}
+	missed.Kind, missed.UserID, missed.Date, missed.EditedAt = engine.EventDone, u.ID, off.Date, s.now()
+	if note != "" {
+		missed.Note = note
+	}
+	if err := tx.UpdateEvent(missed); err != nil {
+		return nil, err
+	}
+	views, err := s.eventViews(tx, []*store.Event{missed})
+	if err != nil {
+		return nil, err
+	}
+	return &ActionResult{Task: v, Events: views}, nil
 }
 
 func (s *Service) Skip(ctx context.Context, u *store.User, a Action) (*ActionResult, error) {
@@ -178,9 +268,24 @@ func (s *Service) Skip(ctx context.Context, u *store.User, a Action) (*ActionRes
 
 // CheckItem checks a checklist item; checking the last one completes the task.
 func (s *Service) CheckItem(ctx context.Context, u *store.User, a Action, itemID string) (*ActionResult, error) {
-	return s.act(ctx, u, a, actOptions{noteOn: engine.EventDone, noteItem: itemID, apply: func(v *TaskView) (engine.State, []engine.Event, error) {
-		return v.Def.Check(v.State, v.Today, engine.ItemID(itemID), engine.Date{})
-	}})
+	return s.act(ctx, u, a, actOptions{
+		noteOn:   engine.EventDone,
+		noteItem: itemID,
+		apply: func(v *TaskView) (engine.State, []engine.Event, error) {
+			return v.Def.Check(v.State, v.Today, engine.ItemID(itemID), engine.Date{})
+		},
+		onStale: func(tx *store.Tx, v *TaskView, off *Offline) (*ActionResult, error) {
+			// Fine if the whole occurrence was completed meanwhile.
+			done, err := tx.FindEvent(v.ID, engine.EventDone, off.Occurrence)
+			if err != nil {
+				return nil, err
+			}
+			if done == nil {
+				return nil, &ActionError{ErrStale}
+			}
+			return &ActionResult{Task: v}, nil
+		},
+	})
 }
 
 func (s *Service) UncheckItem(ctx context.Context, u *store.User, a Action, itemID string) (*ActionResult, error) {

@@ -309,9 +309,28 @@ func actionResponse(r *app.ActionResult, err error) (*connect.Response[pb.Action
 	return respond(&pb.ActionResponse{Task: taskPB(r.Task), Events: eventsPB(r.Events)}, nil)
 }
 
+func offlineFrom(o *pb.Offline) (*app.Offline, error) {
+	if o == nil {
+		return nil, nil
+	}
+	occ, err := parseDate("offline.occurrence", o.Occurrence)
+	if err != nil {
+		return nil, err
+	}
+	date, err := parseDate("offline.date", o.Date)
+	if err != nil {
+		return nil, err
+	}
+	return &app.Offline{Occurrence: occ, Date: date}, nil
+}
+
 func (h *Handler) Complete(ctx context.Context, req *connect.Request[pb.CompleteRequest]) (*connect.Response[pb.ActionResponse], error) {
 	m := req.Msg
-	return actionResponse(h.svc.Complete(ctx, user(ctx), app.Action{TaskID: m.Id, Version: m.Version, Note: m.Note}, m.AsSlotId, m.Force))
+	off, err := offlineFrom(m.Offline)
+	if err != nil {
+		return nil, err
+	}
+	return actionResponse(h.svc.Complete(ctx, user(ctx), app.Action{TaskID: m.Id, Version: m.Version, Note: m.Note, Offline: off}, m.AsSlotId, m.Force))
 }
 
 func (h *Handler) Skip(ctx context.Context, req *connect.Request[pb.SkipRequest]) (*connect.Response[pb.ActionResponse], error) {
@@ -321,7 +340,11 @@ func (h *Handler) Skip(ctx context.Context, req *connect.Request[pb.SkipRequest]
 
 func (h *Handler) CheckItem(ctx context.Context, req *connect.Request[pb.CheckItemRequest]) (*connect.Response[pb.ActionResponse], error) {
 	m := req.Msg
-	return actionResponse(h.svc.CheckItem(ctx, user(ctx), app.Action{TaskID: m.Id, Version: m.Version, Note: m.Note}, m.ItemId))
+	off, err := offlineFrom(m.Offline)
+	if err != nil {
+		return nil, err
+	}
+	return actionResponse(h.svc.CheckItem(ctx, user(ctx), app.Action{TaskID: m.Id, Version: m.Version, Note: m.Note, Offline: off}, m.ItemId))
 }
 
 func (h *Handler) UncheckItem(ctx context.Context, req *connect.Request[pb.UncheckItemRequest]) (*connect.Response[pb.ActionResponse], error) {

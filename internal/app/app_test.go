@@ -738,3 +738,59 @@ func TestTagColors(t *testing.T) {
 	assert.ErrorAs(t, f.svc.SetTagColor(f.ctx, sam, house, "red"), &invalidErr)
 	assert.ErrorIs(t, f.svc.SetTagColor(f.ctx, sam, f.tag(f.admin, "Mine"), "#123456"), ErrNotFound)
 }
+
+func TestOfflineReplay(t *testing.T) {
+	f := newFixture(t)
+	house := f.tag(f.admin, "House")
+	_, doer, _ := f.inviteAll(house)
+
+	// Trash (due Tue Oct 6) done Tuesday while offline, synced Thursday after
+	// the sweep recorded it missed: the miss becomes a done.
+	trashTask := f.task(f.admin, trash, house)
+	f.advance(7) // Thu Oct 8
+	_, err := f.svc.Sweep(f.ctx)
+	require.NoError(t, err)
+	off := &Offline{Occurrence: d("2026-10-06"), Date: d("2026-10-06")}
+	res, err := f.svc.Complete(f.ctx, doer, Action{TaskID: trashTask.ID, Note: "did it before the truck", Offline: off}, "", false)
+	require.NoError(t, err)
+	require.Len(t, res.Events, 1)
+	assert.Equal(t, engine.EventDone, res.Events[0].Kind)
+	assert.Equal(t, d("2026-10-06"), res.Events[0].Date)
+	assert.Equal(t, doer.ID, res.Events[0].User.ID)
+	assert.Equal(t, d("2026-10-13"), res.Task.State.Due)
+
+	// Retrying the same queued action is harmless.
+	res, err = f.svc.Complete(f.ctx, doer, Action{TaskID: trashTask.ID, Offline: off}, "", false)
+	require.NoError(t, err)
+	assert.Empty(t, res.Events)
+
+	// An interval task done offline, synced before anything else happened:
+	// applies as usual.
+	filterTask := f.task(f.admin, filter, house) // due Oct 8 (created today)
+	res, err = f.svc.Complete(f.ctx, doer, Action{TaskID: filterTask.ID, Offline: &Offline{Occurrence: d("2026-10-08"), Date: d("2026-10-08")}}, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, d("2027-01-08"), res.Task.State.Due)
+
+	// Someone else already did it: the queued one can't apply.
+	_, err = f.svc.Complete(f.ctx, f.admin, Action{TaskID: filterTask.ID, Offline: &Offline{Occurrence: d("2027-01-08"), Date: d("2026-10-08")}}, "", false)
+	require.NoError(t, err)
+	_, err = f.svc.CheckItem(f.ctx, doer, Action{TaskID: filterTask.ID, Offline: &Offline{Occurrence: d("2027-01-08"), Date: d("2026-10-08")}}, "x")
+	var actionErr *ActionError
+	assert.ErrorAs(t, err, &actionErr, "checklist item that no longer applies")
+
+	// Not in the future.
+	_, err = f.svc.Complete(f.ctx, doer, Action{TaskID: filterTask.ID, Offline: &Offline{Occurrence: d("2027-04-08"), Date: d("2026-10-09")}}, "", false)
+	var invalidErr *InvalidError
+	assert.ErrorAs(t, err, &invalidErr)
+}
+
+func TestOfflineReplayFixedLate(t *testing.T) {
+	// A carry-over task done offline on Oct 3 and synced Oct 10: next is Nov 1.
+	f := newFixture(t)
+	meds := f.task(f.admin, TaskInput{Title: "Meds", Kind: engine.KindFixed, RRule: "FREQ=MONTHLY;BYMONTHDAY=1", RRuleStart: d("2026-01-01"), CarryOver: true})
+	f.advance(9)
+	res, err := f.svc.Complete(f.ctx, f.admin, Action{TaskID: meds.ID, Offline: &Offline{Occurrence: d("2026-10-01"), Date: d("2026-10-03")}}, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-10-03"), res.Events[0].Date)
+	assert.Equal(t, d("2026-11-01"), res.Task.State.Due)
+}

@@ -108,9 +108,9 @@ type State struct {
 	Checks map[ItemID]Date `json:"checks,omitempty"`
 }
 
-// occurrence is the schedule-given due date of the current occurrence,
+// Occurrence is the schedule-given due date of the current occurrence,
 // ignoring any deferral. It identifies the occurrence in events.
-func (s State) occurrence() Date {
+func (s State) Occurrence() Date {
 	if s.Deferred {
 		return s.DeferredFrom
 	}
@@ -208,7 +208,7 @@ func (t Task) Catchup(s State, today Date) (State, []Event) {
 		return s, events
 	}
 
-	occ := s.occurrence()
+	occ := s.Occurrence()
 	checked, unchecked := t.splitChecklist(s)
 	events = append(events, Event{Kind: EventMissed, Date: s.Due, Occurrence: occ, Checked: checked, Unchecked: unchecked})
 	events = append(events, t.mergedSkips(s)...)
@@ -310,7 +310,7 @@ func (t Task) Complete(s State, today Date, opt CompleteOptions) (State, []Event
 	if len(unchecked) > 0 && !opt.Force {
 		return s, events, ErrChecklistIncomplete
 	}
-	events = append(events, Event{Kind: EventDone, Date: c, Occurrence: s.occurrence(), Slot: slot, Checked: checked, Unchecked: unchecked})
+	events = append(events, Event{Kind: EventDone, Date: c, Occurrence: s.Occurrence(), Slot: slot, Checked: checked, Unchecked: unchecked})
 	events = append(events, t.mergedSkips(s)...)
 	return t.advance(s, c, slot), events, nil
 }
@@ -322,7 +322,7 @@ func (t Task) Skip(s State, today Date) (State, []Event, error) {
 	if err != nil {
 		return s, events, err
 	}
-	events = append(events, Event{Kind: EventSkipped, Date: today, Occurrence: s.occurrence(), Slot: s.Slot})
+	events = append(events, Event{Kind: EventSkipped, Date: today, Occurrence: s.Occurrence(), Slot: s.Slot})
 	events = append(events, t.mergedSkips(s)...)
 	return t.advance(s, today, s.Slot), events, nil
 }
@@ -363,7 +363,7 @@ func (t Task) Defer(s State, today, to Date) (State, []Event, error) {
 	if to.Before(today) {
 		return s, events, ErrPastDate
 	}
-	ev := Event{Kind: EventDeferred, Date: today, Occurrence: s.occurrence(), Slot: s.Slot, From: s.Due, To: to}
+	ev := Event{Kind: EventDeferred, Date: today, Occurrence: s.Occurrence(), Slot: s.Slot, From: s.Due, To: to}
 	if !s.Deferred {
 		s.Deferred, s.DeferredFrom = true, s.Due
 	}
@@ -456,7 +456,7 @@ func (t Task) SetSlot(s State, today Date, slot SlotID) (State, []Event, error) 
 		return s, events, ErrUnknownSlot
 	}
 	s.Slot = slot
-	return s, append(events, Event{Kind: EventSlotSet, Date: today, Occurrence: s.occurrence(), Slot: slot}), nil
+	return s, append(events, Event{Kind: EventSlotSet, Date: today, Occurrence: s.Occurrence(), Slot: slot}), nil
 }
 
 // Check checks a checklist item on date d (zero means today). Checking the

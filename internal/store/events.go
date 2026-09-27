@@ -193,6 +193,17 @@ func (tx *Tx) TasksWithHistory(taskIDs []string) (map[string]bool, error) {
 	return out, err
 }
 
+// FindEvent returns the latest event of kind for the task's occurrence, or
+// nil if there isn't one.
+func (tx *Tx) FindEvent(taskID string, kind engine.EventKind, occurrence engine.Date) (*Event, error) {
+	e, err := scanEvent(tx.queryRow(`SELECT `+eventCols+` FROM events WHERE task_id = ? AND kind = ? AND occurrence = ?
+		ORDER BY created_at DESC LIMIT 1`, taskID, kind, occurrence.String()))
+	if err == ErrNotFound {
+		return nil, nil
+	}
+	return e, err
+}
+
 // LastDone returns the date of the task's latest done event, or zero.
 func (tx *Tx) LastDone(taskID string) (engine.Date, error) {
 	var date string

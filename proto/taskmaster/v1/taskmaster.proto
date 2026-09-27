@@ -411,6 +411,15 @@ message ActionResponse {
   repeated Event events = 2;
 }
 
+// Set on actions a client queued while offline and is now sending.
+message Offline {
+  // The occurrence the action was for: the task's state.due when queued (or
+  // state.deferred_from if it was deferred).
+  string occurrence = 1;
+  // The day it was done.
+  string date = 2;
+}
+
 message CompleteRequest {
   string id = 1;
   int64 version = 2;
@@ -419,6 +428,10 @@ message CompleteRequest {
   string as_slot_id = 4;
   // Complete even if checklist items are unchecked.
   bool force = 5;
+  // For queued offline completions. If that occurrence has since passed, a
+  // "missed" entry for it becomes "done"; if it was already done, nothing
+  // changes; otherwise it fails with FAILED_PRECONDITION.
+  Offline offline = 6;
 }
 
 message SkipRequest {
@@ -433,6 +446,8 @@ message CheckItemRequest {
   int64 version = 2;
   string item_id = 3;
   string note = 4;
+  // For queued offline checks (see CompleteRequest.offline).
+  Offline offline = 5;
 }
 
 message UncheckItemRequest {

@@ -192,6 +192,12 @@ type EventView struct {
 // loadTask loads a task that u can access at level min or above and brings it
 // up to date.
 func (s *Service) loadTask(tx *store.Tx, u *store.User, id string, min store.Level) (*TaskView, error) {
+	return s.loadTaskAt(tx, u, id, min, engine.Date{})
+}
+
+// loadTaskAt is loadTask, but brings the task up to date only as of day (if
+// set), which may be in the past: for replaying actions done offline.
+func (s *Service) loadTaskAt(tx *store.Tx, u *store.User, id string, min store.Level, day engine.Date) (*TaskView, error) {
 	level, err := tx.TaskLevel(u.ID, id)
 	if err != nil {
 		return nil, err
@@ -206,7 +212,7 @@ func (s *Service) loadTask(tx *store.Tx, u *store.User, id string, min store.Lev
 	if err != nil {
 		return nil, err
 	}
-	v, err := s.catchup(tx, t)
+	v, err := s.catchupAt(tx, t, day)
 	if err != nil {
 		return nil, err
 	}
@@ -217,11 +223,19 @@ func (s *Service) loadTask(tx *store.Tx, u *store.User, id string, min store.Lev
 // catchup runs the engine's catch-up (misses, automatic resumes) and saves
 // the result if anything changed. Archived tasks are left as they are.
 func (s *Service) catchup(tx *store.Tx, t *store.Task) (*TaskView, error) {
+	return s.catchupAt(tx, t, engine.Date{})
+}
+
+// catchupAt is catchup as of day (default today); the view's Today is day.
+func (s *Service) catchupAt(tx *store.Tx, t *store.Task, day engine.Date) (*TaskView, error) {
 	def, err := t.Engine()
 	if err != nil {
 		return nil, fmt.Errorf("task %s has an invalid schedule: %w", t.ID, err)
 	}
-	v := &TaskView{Task: t, Def: def, Today: s.today(t.TZ), loadedVersion: t.Version}
+	if day.IsZero() {
+		day = s.today(t.TZ)
+	}
+	v := &TaskView{Task: t, Def: def, Today: day, loadedVersion: t.Version}
 	if !t.ArchivedAt.IsZero() {
 		return v, nil
 	}
