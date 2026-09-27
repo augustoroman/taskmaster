@@ -210,12 +210,16 @@ message Slot {
   string id = 1;
   string title = 2;
   string description = 3;
+  // Removed from the rotation; kept so history can name it. Output only.
+  bool removed = 4;
 }
 
 message ChecklistItem {
   // Empty when adding a new item.
   string id = 1;
   string title = 2;
+  // Removed from the checklist; kept so history can name it. Output only.
+  bool removed = 3;
 }
 
 message Check {
@@ -253,9 +257,11 @@ message Task {
   int32 lead_days = 5;
   string time_zone = 6;
   Schedule schedule = 7;
-  // Cycle tasks: the rotation, in order.
+  // Cycle tasks: the rotation, in order, then removed slots.
   repeated Slot slots = 8;
+  // In order, then removed items.
   repeated ChecklistItem checklist = 9;
+  // The task's tags that you can see.
   repeated string tag_ids = 10;
 
   User creator = 11;
@@ -321,7 +327,7 @@ message CreateTaskResponse {
 }
 
 // Replaces all editable fields. Slots and checklist items without an id are
-// added; existing ones missing from the list are removed.
+// added; existing ones missing from the list (or marked removed) are removed.
 message UpdateTaskRequest {
   string id = 1;
   int64 version = 2;

@@ -382,12 +382,14 @@ The ideas from `schedule` (interval vs skip-missed modes) carry into the engine.
 **Package layout**
 
 ```
-cmd/taskmaster/      main, config
-internal/auth/       JWT verification, invite gate, dev user
+cmd/taskmaster/      main, config, hourly sweep
 internal/engine/     pure scheduling and ranking (no I/O), with heavy tests
-internal/store/      SQLite, migrations, queries, access-control filtering
-internal/server/     API handlers
+internal/store/      SQLite schema, migrations, queries
+internal/app/        access control, catch-up, actions, history: the rules in §4 and §6
+internal/auth/       JWT verification, dev user
+internal/server/     Connect handlers, proto conversion, auth middleware
 proto/               .proto API definition (Connect-RPC)
+gen/                 generated Go code (scripts/gen-proto.sh), committed
 web/                 Vite TypeScript app
 docs/                this document
 ```

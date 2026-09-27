@@ -1640,9 +1640,11 @@ func (x *Schedule) GetRruleStart() string {
 type Slot struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Empty when adding a new slot.
-	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Title         string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
-	Description   string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	Id          string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title       string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// Removed from the rotation; kept so history can name it. Output only.
+	Removed       bool `protobuf:"varint,4,opt,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1698,11 +1700,20 @@ func (x *Slot) GetDescription() string {
 	return ""
 }
 
+func (x *Slot) GetRemoved() bool {
+	if x != nil {
+		return x.Removed
+	}
+	return false
+}
+
 type ChecklistItem struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Empty when adding a new item.
-	Id            string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Title         string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Id    string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	// Removed from the checklist; kept so history can name it. Output only.
+	Removed       bool `protobuf:"varint,3,opt,name=removed,proto3" json:"removed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1749,6 +1760,13 @@ func (x *ChecklistItem) GetTitle() string {
 		return x.Title
 	}
 	return ""
+}
+
+func (x *ChecklistItem) GetRemoved() bool {
+	if x != nil {
+		return x.Removed
+	}
+	return false
 }
 
 type Check struct {
@@ -1977,9 +1995,11 @@ type Task struct {
 	LeadDays int32     `protobuf:"varint,5,opt,name=lead_days,json=leadDays,proto3" json:"lead_days,omitempty"`
 	TimeZone string    `protobuf:"bytes,6,opt,name=time_zone,json=timeZone,proto3" json:"time_zone,omitempty"`
 	Schedule *Schedule `protobuf:"bytes,7,opt,name=schedule,proto3" json:"schedule,omitempty"`
-	// Cycle tasks: the rotation, in order.
-	Slots     []*Slot                `protobuf:"bytes,8,rep,name=slots,proto3" json:"slots,omitempty"`
-	Checklist []*ChecklistItem       `protobuf:"bytes,9,rep,name=checklist,proto3" json:"checklist,omitempty"`
+	// Cycle tasks: the rotation, in order, then removed slots.
+	Slots []*Slot `protobuf:"bytes,8,rep,name=slots,proto3" json:"slots,omitempty"`
+	// In order, then removed items.
+	Checklist []*ChecklistItem `protobuf:"bytes,9,rep,name=checklist,proto3" json:"checklist,omitempty"`
+	// The task's tags that you can see.
 	TagIds    []string               `protobuf:"bytes,10,rep,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
 	Creator   *User                  `protobuf:"bytes,11,opt,name=creator,proto3" json:"creator,omitempty"`
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,12,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
@@ -2588,7 +2608,7 @@ func (x *CreateTaskResponse) GetTask() *Task {
 }
 
 // Replaces all editable fields. Slots and checklist items without an id are
-// added; existing ones missing from the list are removed.
+// added; existing ones missing from the list (or marked removed) are removed.
 type UpdateTaskRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -4632,14 +4652,16 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\rinterval_unit\x18\x03 \x01(\x0e2\x1b.taskmaster.v1.IntervalUnitR\fintervalUnit\x12\x14\n" +
 	"\x05rrule\x18\x04 \x01(\tR\x05rrule\x12\x1f\n" +
 	"\vrrule_start\x18\x05 \x01(\tR\n" +
-	"rruleStart\"N\n" +
+	"rruleStart\"h\n" +
 	"\x04Slot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\"5\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x18\n" +
+	"\aremoved\x18\x04 \x01(\bR\aremoved\"O\n" +
 	"\rChecklistItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05title\x18\x02 \x01(\tR\x05title\"]\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
+	"\aremoved\x18\x03 \x01(\bR\aremoved\"]\n" +
 	"\x05Check\x12\x17\n" +
 	"\aitem_id\x18\x01 \x01(\tR\x06itemId\x12\x12\n" +
 	"\x04date\x18\x02 \x01(\tR\x04date\x12'\n" +
