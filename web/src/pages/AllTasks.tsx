@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
-import { api, type Task } from "../api";
+import { api, ListTasksResponseSchema, type Task } from "../api";
+import { cached, useOnSynced } from "../offline";
 import { ErrorBanner, useAutoRefresh, useRunner } from "../components/common";
 import { TagFilter, useTagFilter } from "../components/TagFilter";
 import { TaskRow } from "../components/TaskRow";
@@ -13,13 +14,19 @@ export function AllTasks() {
 
   const load = () =>
     run(async () => {
-      const res = await api.listTasks({ tagIds: filter.selected, includeArchived: showArchived, includeDone: showArchived });
+      const res = await cached(
+        `tasks:${filter.selected.join()}:${showArchived}`,
+        ListTasksResponseSchema,
+        () => api.listTasks({ tagIds: filter.selected, includeArchived: showArchived, includeDone: showArchived }),
+        (r) => r.tasks,
+      );
       setTasks(res.tasks);
     });
   useEffect(() => {
     load();
   }, [filter.selected.join(), showArchived]);
   useAutoRefresh(load);
+  useOnSynced(load);
 
   const q = query.trim().toLowerCase();
   const shown = (tasks ?? []).filter((t) => !q || t.title.toLowerCase().includes(q));

@@ -5,6 +5,7 @@ import { describeSchedule } from "../schedule";
 import { useSession } from "../session";
 import { tagStyle } from "../colors";
 import { activeChecklist, canDo, slotTitle, toast, undoAction, useRunner } from "./common";
+import { isNetworkError, queueAction, queuedFor, unqueue, useConnectivity } from "../offline";
 
 export function TagChips({ ids }: { ids: string[] }) {
   const { tagsById } = useSession();
@@ -56,14 +57,24 @@ export function TaskRow({
   onChanged: (t: Task) => void;
 }) {
   const session = useSession();
-  const { busy, error, run } = useRunner();
+  const connectivity = useConnectivity();
+  const { busy, error, setError, run } = useRunner();
   const st = task.state!;
   const slot = st.currentSlotId ? slotTitle(task, st.currentSlotId) : "";
-  const quickDone = canDo(task) && !st.done && !st.paused && activeChecklist(task).length === 0;
+  const pending = queuedFor(task.id, connectivity).some((a) => a.kind === "complete");
+  const quickDone = canDo(task) && !st.done && !st.paused && !pending && activeChecklist(task).length === 0;
 
   async function done(e: Event) {
     e.preventDefault();
-    const res = await run(() => api.complete({ id: task.id, version: task.version }));
+    const res = await run(
+      () => api.complete({ id: task.id, version: task.version }),
+      async (err) => {
+        if (!isNetworkError(err)) return;
+        setError("");
+        const item = await queueAction(task, session.today(), { kind: "complete" });
+        toast(`Done: ${task.title} · will sync when you're back online`, { label: "Undo", run: () => unqueue(item.id!) });
+      },
+    );
     if (res?.task) {
       const next = res.task.state?.due;
       toast(`Done: ${task.title}${next && !res.task.state?.done ? ` · next ${formatDate(next)}` : ""}`, undoAction(res.task, onChanged));
@@ -83,6 +94,7 @@ export function TaskRow({
           <DueLabel task={task} group={group} />
           <span class="muted">{describeSchedule(task.schedule)}</span>
           {task.archived && <span class="badge">archived</span>}
+          {pending && <span class="badge">done · waiting to sync</span>}
           <TagChips ids={task.tagIds} />
           {showLastDone && task.lastDone && (
             <span class="muted small" title={`Last done ${formatDate(task.lastDone, session.today())}`}>

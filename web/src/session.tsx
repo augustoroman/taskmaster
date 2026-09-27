@@ -1,6 +1,7 @@
 import { createContext, type ComponentChildren } from "preact";
 import { useCallback, useContext, useEffect, useState } from "preact/hooks";
-import { AccessLevel, api, errorMessage, type Tag, type User } from "./api";
+import { AccessLevel, api, errorMessage, GetMeResponseSchema, ListTagsResponseSchema, type Tag, type User } from "./api";
+import { cached, isNetworkError } from "./offline";
 import { browserTimeZone, today } from "./dates";
 
 export interface Session {
@@ -32,15 +33,19 @@ export function SessionProvider({ children }: { children: ComponentChildren }) {
   const [error, setError] = useState("");
 
   const reloadTags = useCallback(async () => {
-    setTags((await api.listTags({})).tags);
+    setTags((await cached("tags", ListTagsResponseSchema, () => api.listTags({}))).tags);
   }, []);
 
   useEffect(() => {
     (async () => {
       try {
-        let user = (await api.getMe({})).user!;
+        let user = (await cached("me", GetMeResponseSchema, () => api.getMe({}))).user!;
         if (!user.timeZone) {
-          user = (await api.updateMe({ timeZone: browserTimeZone() })).user!;
+          try {
+            user = (await api.updateMe({ timeZone: browserTimeZone() })).user!;
+          } catch (err) {
+            if (!isNetworkError(err)) throw err;
+          }
         }
         setMe(user);
         await reloadTags();

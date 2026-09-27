@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
-import { api, isConflict, ScheduleKind, type ActionResponse, type Task } from "../api";
+import { api, GetTaskResponseSchema, isConflict, ScheduleKind, type ActionResponse, type Task } from "../api";
+import { cached, isNetworkError, queueAction, queuedFor, unqueue, useConnectivity, useOnSynced, type QueuedAction } from "../offline";
 import { addDays, formatDate, relativeDue, relativePast } from "../dates";
 import { href, navigate } from "../router";
 import { describeSchedule } from "../schedule";
@@ -16,14 +17,33 @@ export function TaskDetail({ id }: { id: string }) {
   const [historyKey, setHistoryKey] = useState(0);
   const { busy, error, setError, run } = useRunner();
 
-  const load = () => run(async () => setTask((await api.getTask({ id })).task!));
+  const session = useSession();
+  const load = () => run(async () => setTask((await cached(`task:${id}`, GetTaskResponseSchema, () => api.getTask({ id }))).task!));
   useEffect(() => {
     load();
   }, [id]);
+  useOnSynced(() => {
+    load();
+    setHistoryKey((k) => k + 1);
+  });
 
-  /** Applies an action's result; on a version conflict, reloads the task. */
-  async function act(fn: () => Promise<ActionResponse | { task?: Task }>, message?: string) {
-    const res = await run(fn, (err) => isConflict(err) && load());
+  /**
+   * Applies an action's result; on a version conflict, reloads the task. If
+   * the server can't be reached and the action can be queued (offline), it's
+   * queued instead.
+   */
+  async function act(fn: () => Promise<ActionResponse | { task?: Task }>, message?: string, offline?: OfflineAction) {
+    let queued = false;
+    const res = await run(fn, async (err) => {
+      if (isConflict(err)) load();
+      if (offline && task && isNetworkError(err)) {
+        setError("");
+        const item = await queueAction(task, session.today(), offline);
+        queued = true;
+        toast(`${message ?? "Saved"} · will sync when you're back online`, { label: "Undo", run: () => unqueue(item.id!) });
+      }
+    });
+    if (queued) return true;
     if (!res?.task) return false;
     setTask(res.task);
     setHistoryKey((k) => k + 1);
@@ -66,7 +86,8 @@ export function TaskDetail({ id }: { id: string }) {
   );
 }
 
-type ActFn = (fn: () => Promise<ActionResponse | { task?: Task }>, message?: string) => Promise<boolean>;
+type OfflineAction = Pick<QueuedAction, "kind" | "itemId" | "note" | "asSlotId">;
+type ActFn = (fn: () => Promise<ActionResponse | { task?: Task }>, message?: string, offline?: OfflineAction) => Promise<boolean>;
 
 function Header({ task, onChanged }: { task: Task; onChanged: (t: Task) => void }) {
   const session = useSession();
@@ -186,6 +207,7 @@ function Actions({ task, busy, act }: { task: Task; busy: boolean; act: ActFn })
   const [note, setNote] = useState("");
   const [date, setDate] = useState("");
   const [asSlot, setAsSlot] = useState("");
+  const connectivity = useConnectivity();
   const st = task.state!;
   const items = activeChecklist(task);
   const checked = new Map(st.checks.map((c) => [c.itemId, c]));
@@ -202,11 +224,25 @@ function Actions({ task, busy, act }: { task: Task; busy: boolean; act: ActFn })
     setNote("");
     setDate(initialDate);
   }
-  async function submit(fn: () => Promise<ActionResponse | { task?: Task }>, message: string) {
-    if (await act(fn, message)) setForm("");
+  async function submit(fn: () => Promise<ActionResponse | { task?: Task }>, message: string, offline?: OfflineAction) {
+    if (await act(fn, message, offline)) setForm("");
   }
 
+  const pending = queuedFor(task.id, connectivity);
+  const pendingDone = pending.find((a) => a.kind === "complete");
+  const pendingChecks = new Set(pending.filter((a) => a.kind === "check").map((a) => a.itemId));
+
   if (st.done) return null;
+  if (pendingDone) {
+    return (
+      <p class="notice">
+        You marked this done while offline; it will sync when you're back online.{" "}
+        <button class="link" onClick={() => unqueue(pendingDone.id!)}>
+          Undo
+        </button>
+      </p>
+    );
+  }
   if (st.paused) {
     return canEdit(task) ? (
       <section class="actions">
@@ -224,22 +260,27 @@ function Actions({ task, busy, act }: { task: Task; busy: boolean; act: ActFn })
         <ul class="checklist">
           {items.map((item) => {
             const c = checked.get(item.id);
+            const queued = pendingChecks.has(item.id);
             return (
               <li key={item.id}>
                 <label class="check">
                   <input
                     type="checkbox"
-                    checked={!!c}
-                    disabled={busy}
+                    checked={!!c || queued}
+                    disabled={busy || queued}
                     onChange={() =>
-                      act(
-                        () => (c ? api.uncheckItem({ ...v, itemId: item.id }) : api.checkItem({ ...v, itemId: item.id })),
-                        c ? undefined : checked.size + 1 === items.length ? `Done: ${task.title}` : undefined,
-                      )
+                      c
+                        ? act(() => api.uncheckItem({ ...v, itemId: item.id }))
+                        : act(
+                            () => api.checkItem({ ...v, itemId: item.id }),
+                            checked.size + pendingChecks.size + 1 === items.length ? `Done: ${task.title}` : `Checked ${item.title}`,
+                            { kind: "check", itemId: item.id },
+                          )
                     }
                   />
                   {item.title}
                 </label>
+                {queued && <span class="muted small">waiting to sync</span>}
                 {c && (
                   <span class="muted small">
                     {formatDate(c.date, session.today())}
@@ -285,7 +326,11 @@ function Actions({ task, busy, act }: { task: Task; busy: boolean; act: ActFn })
           class="inline-form"
           onSubmit={(e) => {
             e.preventDefault();
-            submit(() => api.complete({ ...v, note, asSlotId: asSlot, force: items.length > 0 }), `Done: ${task.title}`);
+            submit(() => api.complete({ ...v, note, asSlotId: asSlot, force: items.length > 0 }), `Done: ${task.title}`, {
+              kind: "complete",
+              note,
+              asSlotId: asSlot,
+            });
           }}
         >
           {kind === ScheduleKind.CYCLE && slots.length > 1 && (
@@ -352,6 +397,7 @@ function Actions({ task, busy, act }: { task: Task; busy: boolean; act: ActFn })
                 return { task };
               },
               "Note added",
+              { kind: "note", note },
             );
           }}
         >

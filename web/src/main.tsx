@@ -9,6 +9,8 @@ import { TaskEdit } from "./pages/TaskEdit";
 import { Tags } from "./pages/Tags";
 import { Settings } from "./pages/Settings";
 import { Toasts } from "./components/common";
+import { OfflineBanner } from "./components/OfflineBanner";
+import { startSync } from "./offline";
 
 function Page({ route }: { route: Route }) {
   switch (route.page) {
@@ -50,6 +52,7 @@ function App() {
         </a>
       </header>
       <main class="page">
+        <OfflineBanner />
         <Page route={route} />
       </main>
       <Toasts />
@@ -60,6 +63,8 @@ function App() {
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch((err) => console.warn("service worker:", err));
 }
+
+startSync();
 
 render(
   <SessionProvider>

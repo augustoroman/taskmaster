@@ -302,6 +302,18 @@ form.inline input[type="email"] {
   font-size: 0.85rem;
 }
 
+.offline-banner {
+  background: var(--accent-soft);
+  border-radius: var(--radius);
+  padding: 0.1rem 0.75rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+}
+
+.offline-banner .failed {
+  color: var(--danger);
+}
+
 .notice {
   background: var(--accent-soft);
   border-radius: var(--radius);

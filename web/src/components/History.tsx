@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
-import { AccessLevel, api, EventKind, type Event, type Task } from "../api";
+import { AccessLevel, api, EventKind, ListEventsResponseSchema, type Event, type Task } from "../api";
+import { cached } from "../offline";
 import { formatDate, formatTimestamp } from "../dates";
 import { useSession } from "../session";
 import { ErrorBanner, Markdown, slotTitle, useRunner } from "./common";
@@ -50,7 +51,8 @@ export function History({ task, onTaskChanged }: { task: Task; onTaskChanged: (t
   const { busy, error, setError, run } = useRunner();
 
   async function load(token = "") {
-    const res = await run(() => api.listEvents({ taskId: task.id, slotId: slotFilter, limit: PAGE, pageToken: token }));
+    const fetch = () => api.listEvents({ taskId: task.id, slotId: slotFilter, limit: PAGE, pageToken: token });
+    const res = await run(() => (token ? fetch() : cached(`events:${task.id}:${slotFilter}`, ListEventsResponseSchema, fetch)));
     if (!res) return;
     setEvents((prev) => (token ? [...prev, ...res.events] : res.events));
     setNext(res.nextPageToken);

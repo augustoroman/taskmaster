@@ -1,5 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
-import { api, UrgencyGroup, type UpcomingItem } from "../api";
+import { api, UpcomingResponseSchema, UrgencyGroup, type UpcomingItem } from "../api";
+import { cached, useOnSynced } from "../offline";
 import { ErrorBanner, useAutoRefresh, useRunner } from "../components/common";
 import { TagFilter, useTagFilter } from "../components/TagFilter";
 import { TaskRow } from "../components/TaskRow";
@@ -16,11 +17,24 @@ export function Upcoming() {
   const filter = useTagFilter("upcoming");
   const { error, setError, run } = useRunner();
 
-  const load = () => run(async () => setItems((await api.upcoming({ tagIds: filter.selected })).items));
+  const load = () =>
+    run(async () =>
+      setItems(
+        (
+          await cached(
+            `upcoming:${filter.selected.join()}`,
+            UpcomingResponseSchema,
+            () => api.upcoming({ tagIds: filter.selected }),
+            (r) => r.items.map((i) => i.task!),
+          )
+        ).items,
+      ),
+    );
   useEffect(() => {
     load();
   }, [filter.selected.join()]);
   useAutoRefresh(load);
+  useOnSynced(load);
 
   return (
     <>
