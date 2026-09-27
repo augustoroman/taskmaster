@@ -184,7 +184,9 @@ func applyInput(t *store.Task, in TaskInput) error {
 
 // UpdateTask replaces a task's editable fields. If the schedule changes, the
 // current occurrence is recomputed and a schedule_changed event is recorded.
-func (s *Service) UpdateTask(ctx context.Context, u *store.User, id string, version int64, in TaskInput) (*TaskView, error) {
+// If tagIDs is non-nil, the task's tags that u can see become tagIDs (tags u
+// can't see are kept); adding a tag requires full access to it.
+func (s *Service) UpdateTask(ctx context.Context, u *store.User, id string, version int64, in TaskInput, tagIDs []string) (*TaskView, error) {
 	if err := in.normalize(s, u); err != nil {
 		return nil, err
 	}
@@ -198,6 +200,11 @@ func (s *Service) UpdateTask(ctx context.Context, u *store.User, id string, vers
 			return ErrConflict
 		}
 		t := v.Task
+		if tagIDs != nil {
+			if err := s.setTags(tx, u, t, tagIDs); err != nil {
+				return err
+			}
+		}
 		oldKind, oldInterval, oldRule, oldStart := t.Kind, t.Interval, t.RRule, t.RRuleStart
 		oldDue := t.State.Due
 		if err := applyInput(t, in); err != nil {
@@ -321,6 +328,36 @@ func (s *Service) ListTasks(ctx context.Context, u *store.User, f TaskFilter) ([
 		return s.finish(tx, u, views...)
 	})
 	return views, err
+}
+
+// setTags makes the tags of t that u can see equal to want.
+func (s *Service) setTags(tx *store.Tx, u *store.User, t *store.Task, want []string) error {
+	tags, err := tx.UserTags(u.ID)
+	if err != nil {
+		return err
+	}
+	visible := map[string]bool{}
+	for _, tag := range tags {
+		visible[tag.ID] = true
+	}
+	var next []string
+	for _, id := range t.TagIDs {
+		if !visible[id] {
+			next = append(next, id) // not ours to change
+		}
+	}
+	for _, id := range dedupe(want) {
+		if !slices.Contains(t.TagIDs, id) {
+			if err := s.requireTagLevel(tx, u, id, store.LevelFull); err != nil {
+				return err
+			}
+		} else if !visible[id] {
+			continue // already kept above
+		}
+		next = append(next, id)
+	}
+	t.TagIDs = next
+	return nil
 }
 
 // isHidden reports whether every tag of t that the user can see is hidden.

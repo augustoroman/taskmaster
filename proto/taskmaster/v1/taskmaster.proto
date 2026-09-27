@@ -277,6 +277,8 @@ message Task {
   double period_days = 18;
   int32 effective_lead_days = 19;
   repeated Projected projected = 20;
+  // The date of the latest completion, if any.
+  string last_done = 21;
 }
 
 // The editable fields of a task.
@@ -332,6 +334,10 @@ message UpdateTaskRequest {
   string id = 1;
   int64 version = 2;
   TaskInput task = 3;
+  // If set, the task's tags become tag_ids (among the tags you can see; others
+  // are kept). Adding a tag requires full access to it.
+  bool update_tags = 4;
+  repeated string tag_ids = 5;
 }
 message UpdateTaskResponse {
   Task task = 1;

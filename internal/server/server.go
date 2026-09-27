@@ -237,7 +237,11 @@ func (h *Handler) UpdateTask(ctx context.Context, req *connect.Request[pb.Update
 	if err != nil {
 		return nil, err
 	}
-	t, err := h.svc.UpdateTask(ctx, user(ctx), req.Msg.Id, req.Msg.Version, in)
+	var tags []string
+	if req.Msg.UpdateTags {
+		tags = append([]string{}, req.Msg.TagIds...) // non-nil even when empty
+	}
+	t, err := h.svc.UpdateTask(ctx, user(ctx), req.Msg.Id, req.Msg.Version, in, tags)
 	if err != nil {
 		return nil, toConnect(err)
 	}

@@ -42,7 +42,7 @@ export function AllTasks() {
       ) : (
         <ul class="task-list">
           {shown.map((t) => (
-            <TaskRow key={t.id} task={t} onChanged={load} />
+            <TaskRow key={t.id} task={t} showLastDone onChanged={load} />
           ))}
         </ul>
       )}

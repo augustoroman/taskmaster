@@ -174,6 +174,8 @@ type TaskView struct {
 	VisibleTagIDs []string
 	// Users has the creator and anyone who checked a checklist item.
 	Users map[string]*store.User
+	// LastDone is the date of the latest completion, if any.
+	LastDone engine.Date
 	// loadedVersion is the version before any catch-up was saved, for
 	// comparing with the version the client sent.
 	loadedVersion int64
@@ -267,8 +269,9 @@ func (s *Service) finish(tx *store.Tx, u *store.User, views ...*TaskView) error 
 	for _, t := range tags {
 		visible[t.ID] = true
 	}
-	var userIDs []string
+	var userIDs, taskIDs []string
 	for _, v := range views {
+		taskIDs = append(taskIDs, v.ID)
 		v.VisibleTagIDs = nil
 		for _, id := range v.TagIDs {
 			if visible[id] {
@@ -284,8 +287,13 @@ func (s *Service) finish(tx *store.Tx, u *store.User, views ...*TaskView) error 
 	if err != nil {
 		return err
 	}
+	lastDone, err := tx.LastDoneDates(taskIDs)
+	if err != nil {
+		return err
+	}
 	for _, v := range views {
 		v.Users = users
+		v.LastDone = lastDone[v.ID]
 	}
 	return nil
 }

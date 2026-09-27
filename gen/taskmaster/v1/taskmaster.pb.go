@@ -2012,8 +2012,10 @@ type Task struct {
 	PeriodDays        float64      `protobuf:"fixed64,18,opt,name=period_days,json=periodDays,proto3" json:"period_days,omitempty"`
 	EffectiveLeadDays int32        `protobuf:"varint,19,opt,name=effective_lead_days,json=effectiveLeadDays,proto3" json:"effective_lead_days,omitempty"`
 	Projected         []*Projected `protobuf:"bytes,20,rep,name=projected,proto3" json:"projected,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// The date of the latest completion, if any.
+	LastDone      string `protobuf:"bytes,21,opt,name=last_done,json=lastDone,proto3" json:"last_done,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Task) Reset() {
@@ -2184,6 +2186,13 @@ func (x *Task) GetProjected() []*Projected {
 		return x.Projected
 	}
 	return nil
+}
+
+func (x *Task) GetLastDone() string {
+	if x != nil {
+		return x.LastDone
+	}
+	return ""
 }
 
 // The editable fields of a task.
@@ -2610,10 +2619,14 @@ func (x *CreateTaskResponse) GetTask() *Task {
 // Replaces all editable fields. Slots and checklist items without an id are
 // added; existing ones missing from the list (or marked removed) are removed.
 type UpdateTaskRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Version       int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
-	Task          *TaskInput             `protobuf:"bytes,3,opt,name=task,proto3" json:"task,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Id      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	Task    *TaskInput             `protobuf:"bytes,3,opt,name=task,proto3" json:"task,omitempty"`
+	// If set, the task's tags become tag_ids (among the tags you can see; others
+	// are kept). Adding a tag requires full access to it.
+	UpdateTags    bool     `protobuf:"varint,4,opt,name=update_tags,json=updateTags,proto3" json:"update_tags,omitempty"`
+	TagIds        []string `protobuf:"bytes,5,rep,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2665,6 +2678,20 @@ func (x *UpdateTaskRequest) GetVersion() int64 {
 func (x *UpdateTaskRequest) GetTask() *TaskInput {
 	if x != nil {
 		return x.Task
+	}
+	return nil
+}
+
+func (x *UpdateTaskRequest) GetUpdateTags() bool {
+	if x != nil {
+		return x.UpdateTags
+	}
+	return false
+}
+
+func (x *UpdateTaskRequest) GetTagIds() []string {
+	if x != nil {
+		return x.TagIds
 	}
 	return nil
 }
@@ -4687,7 +4714,7 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\x06checks\x18\b \x03(\v2\x14.taskmaster.v1.CheckR\x06checks\"6\n" +
 	"\tProjected\x12\x10\n" +
 	"\x03due\x18\x01 \x01(\tR\x03due\x12\x17\n" +
-	"\aslot_id\x18\x02 \x01(\tR\x06slotId\"\xa6\x06\n" +
+	"\aslot_id\x18\x02 \x01(\tR\x06slotId\"\xc3\x06\n" +
 	"\x04Task\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
@@ -4712,7 +4739,8 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\vperiod_days\x18\x12 \x01(\x01R\n" +
 	"periodDays\x12.\n" +
 	"\x13effective_lead_days\x18\x13 \x01(\x05R\x11effectiveLeadDays\x126\n" +
-	"\tprojected\x18\x14 \x03(\v2\x18.taskmaster.v1.ProjectedR\tprojected\"\xb5\x02\n" +
+	"\tprojected\x18\x14 \x03(\v2\x18.taskmaster.v1.ProjectedR\tprojected\x12\x1b\n" +
+	"\tlast_done\x18\x15 \x01(\tR\blastDone\"\xb5\x02\n" +
 	"\tTaskInput\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1a\n" +
@@ -4739,11 +4767,14 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\atag_ids\x18\x02 \x03(\tR\x06tagIds\x12\x1b\n" +
 	"\tfirst_due\x18\x03 \x01(\tR\bfirstDue\"=\n" +
 	"\x12CreateTaskResponse\x12'\n" +
-	"\x04task\x18\x01 \x01(\v2\x13.taskmaster.v1.TaskR\x04task\"k\n" +
+	"\x04task\x18\x01 \x01(\v2\x13.taskmaster.v1.TaskR\x04task\"\xa5\x01\n" +
 	"\x11UpdateTaskRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12,\n" +
-	"\x04task\x18\x03 \x01(\v2\x18.taskmaster.v1.TaskInputR\x04task\"=\n" +
+	"\x04task\x18\x03 \x01(\v2\x18.taskmaster.v1.TaskInputR\x04task\x12\x1f\n" +
+	"\vupdate_tags\x18\x04 \x01(\bR\n" +
+	"updateTags\x12\x17\n" +
+	"\atag_ids\x18\x05 \x03(\tR\x06tagIds\"=\n" +
 	"\x12UpdateTaskResponse\x12'\n" +
 	"\x04task\x18\x01 \x01(\v2\x13.taskmaster.v1.TaskR\x04task\"$\n" +
 	"\x12ArchiveTaskRequest\x12\x0e\n" +

@@ -109,6 +109,7 @@ func taskPB(v *app.TaskView) *pb.Task {
 		MyAccess:          levels[v.Level],
 		PeriodDays:        v.Def.PeriodDays(v.Today),
 		EffectiveLeadDays: int32(v.Def.LeadDays(v.Today)),
+		LastDone:          v.LastDone.String(),
 		State: &pb.TaskState{
 			Due:           v.State.Due.String(),
 			Deferred:      v.State.Deferred,

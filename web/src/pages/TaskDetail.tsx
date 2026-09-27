@@ -1,6 +1,6 @@
 import { useEffect, useState } from "preact/hooks";
 import { api, isConflict, ScheduleKind, type ActionResponse, type Task } from "../api";
-import { addDays, formatDate, relativeDue } from "../dates";
+import { addDays, formatDate, relativeDue, relativePast } from "../dates";
 import { href, navigate } from "../router";
 import { describeSchedule } from "../schedule";
 import { assignableTags, useSession } from "../session";
@@ -148,6 +148,11 @@ function Status({ task }: { task: Task }) {
         </p>
       ) : (
         <p class="muted">No due date.</p>
+      )}
+      {task.lastDone && (
+        <p class="muted small">
+          Last done {formatDate(task.lastDone, ref)} ({relativePast(task.lastDone, ref)})
+        </p>
       )}
       {later.length > 0 && !st.paused && (
         <p class="muted small">

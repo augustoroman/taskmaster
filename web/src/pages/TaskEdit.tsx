@@ -119,7 +119,7 @@ export function TaskEdit({ id }: { id?: string }) {
     const res = await run(
       (): Promise<{ task?: Task }> =>
         task
-          ? api.updateTask({ id: task.id, version: task.version, task: input })
+          ? api.updateTask({ id: task.id, version: task.version, task: input, updateTags: true, tagIds: draft!.tagIds })
           : api.createTask({ task: input, tagIds: draft!.tagIds, firstDue: draft!.firstDue }),
       (err) => {
         if (isConflict(err)) setError("Someone else changed this task while you were editing. Reload to see their changes; your edits here will be lost.");
@@ -128,7 +128,12 @@ export function TaskEdit({ id }: { id?: string }) {
     if (res?.task) navigate(href.task(res.task.id));
   }
 
-  const tags = assignableTags(session);
+  // Tags you can add, plus any already on the task (which you can remove).
+  const assignable = assignableTags(session);
+  const tags = [
+    ...assignable,
+    ...(task?.tagIds ?? []).filter((id) => !assignable.some((t) => t.id === id)).flatMap((id) => session.tagsById.get(id) ?? []),
+  ];
   return (
     <form class="task-edit" onSubmit={save}>
       <h1>{task ? "Edit task" : "New task"}</h1>
@@ -178,7 +183,7 @@ export function TaskEdit({ id }: { id?: string }) {
         </select>
       </label>
 
-      {!task && tags.length > 0 && (
+      {tags.length > 0 && (
         <fieldset>
           <legend>Tags</legend>
           <p class="muted small">Tags decide who else can see this task. Without tags, it's private to you.</p>
@@ -188,6 +193,7 @@ export function TaskEdit({ id }: { id?: string }) {
                 <input
                   type="checkbox"
                   checked={draft.tagIds.includes(t.id)}
+                  disabled={!draft.tagIds.includes(t.id) && !assignable.includes(t)}
                   onChange={(e) =>
                     set({ tagIds: e.currentTarget.checked ? [...draft.tagIds, t.id] : draft.tagIds.filter((x) => x !== t.id) })
                   }

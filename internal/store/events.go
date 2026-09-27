@@ -154,6 +154,25 @@ type scanner func(...any) error
 
 func (s scanner) Scan(dest ...any) error { return s(dest...) }
 
+// LastDoneDates returns the latest done date of each task that has one.
+func (tx *Tx) LastDoneDates(taskIDs []string) (map[string]engine.Date, error) {
+	out := map[string]engine.Date{}
+	if len(taskIDs) == 0 {
+		return out, nil
+	}
+	args := append(anys(taskIDs), engine.EventDone)
+	err := tx.each(`SELECT task_id, MAX(date) FROM events WHERE task_id IN (`+placeholders(len(taskIDs))+`) AND kind = ? GROUP BY task_id`, args,
+		func(scan func(...any) error) error {
+			var id, date string
+			if err := scan(&id, &date); err != nil {
+				return err
+			}
+			out[id] = mustDate(date)
+			return nil
+		})
+	return out, err
+}
+
 // LastDone returns the date of the task's latest done event, or zero.
 func (tx *Tx) LastDone(taskID string) (engine.Date, error) {
 	var date string

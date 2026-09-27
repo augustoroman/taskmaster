@@ -123,7 +123,7 @@ func TestAccessLevels(t *testing.T) {
 	assert.ErrorIs(t, err, ErrPermission)
 	_, err = f.svc.ArchiveTask(f.ctx, doer, task.ID)
 	assert.ErrorIs(t, err, ErrPermission)
-	_, err = f.svc.UpdateTask(f.ctx, doer, task.ID, task.Version, filter)
+	_, err = f.svc.UpdateTask(f.ctx, doer, task.ID, task.Version, filter, nil)
 	assert.ErrorIs(t, err, ErrPermission)
 
 	_, err = f.svc.Pause(f.ctx, full, a, engine.Date{})
@@ -316,7 +316,7 @@ func TestVersionConflict(t *testing.T) {
 	// A second person acting on the same stale version.
 	_, err = f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID, Version: task.Version}, "", false)
 	assert.ErrorIs(t, err, ErrConflict)
-	_, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, task.Version, filter)
+	_, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, task.Version, filter, nil)
 	assert.ErrorIs(t, err, ErrConflict)
 }
 
@@ -364,7 +364,7 @@ func TestChecklist(t *testing.T) {
 	got, err := f.svc.GetTask(f.ctx, f.admin, task.ID)
 	require.NoError(t, err)
 	in.Checklist = []store.ChecklistItem{{ID: garage, Title: "Garage"}, {Title: "Attic"}}
-	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, in)
+	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, in, nil)
 	require.NoError(t, err)
 	require.Len(t, updated.Checklist, 3)
 	assert.True(t, updated.Checklist[2].Removed)
@@ -382,7 +382,7 @@ func TestScheduleChange(t *testing.T) {
 
 	in := filter
 	in.Interval = engine.Interval{N: 1, Unit: engine.Months}
-	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, in)
+	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, in, nil)
 	require.NoError(t, err)
 	assert.Equal(t, d("2026-11-01"), updated.State.Due, "recomputed from the last completion")
 
@@ -408,7 +408,7 @@ func TestCycleSlots(t *testing.T) {
 
 	// Removing the current slot moves to the first remaining one.
 	in.Slots = []store.Slot{{ID: bathrooms, Title: "Clean bathrooms"}}
-	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, res.Task.Version, in)
+	updated, err := f.svc.UpdateTask(f.ctx, f.admin, task.ID, res.Task.Version, in, nil)
 	require.NoError(t, err)
 	assert.Equal(t, engine.SlotID(bathrooms), updated.State.Slot)
 
@@ -487,4 +487,58 @@ func TestEventPaging(t *testing.T) {
 	assert.Len(t, page2, 2)
 	assert.Empty(t, token)
 	assert.NotEqual(t, page1[2].ID, page2[0].ID)
+}
+
+func TestLastDone(t *testing.T) {
+	f := newFixture(t)
+	task := f.task(f.admin, filter)
+	assert.True(t, task.LastDone.IsZero())
+	f.advance(4)
+	res, err := f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID}, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-10-05"), res.Task.LastDone)
+
+	back := d("2026-10-02")
+	_, tv, err := f.svc.EditEvent(f.ctx, f.admin, res.Events[0].ID, EventEdit{Date: &back})
+	require.NoError(t, err)
+	assert.Equal(t, back, tv.LastDone)
+
+	list, err := f.svc.ListTasks(f.ctx, f.admin, TaskFilter{})
+	require.NoError(t, err)
+	assert.Equal(t, back, list[0].LastDone)
+
+	tv, err = f.svc.DeleteEvent(f.ctx, f.admin, res.Events[0].ID)
+	require.NoError(t, err)
+	assert.True(t, tv.LastDone.IsZero())
+}
+
+func TestUpdateTaskTags(t *testing.T) {
+	f := newFixture(t)
+	house, yard := f.tag(f.admin, "House"), f.tag(f.admin, "Yard")
+	_, _, full := f.inviteAll(house)
+	secret := f.tag(full, "Secret")
+	task := f.task(f.admin, filter, house)
+
+	// full adds their own tag while editing.
+	got, err := f.svc.UpdateTask(f.ctx, full, task.ID, task.Version, filter, []string{house, secret})
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{house, secret}, got.VisibleTagIDs)
+
+	// The admin can't see "Secret"; replacing tags keeps it.
+	got, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, filter, []string{yard})
+	require.NoError(t, err)
+	assert.Equal(t, []string{yard}, got.VisibleTagIDs)
+	assert.ElementsMatch(t, []string{yard, secret}, got.TagIDs)
+
+	// Can't add a tag without full access to it; nothing changes.
+	other := f.tag(f.admin, "Other")
+	_, err = f.svc.UpdateTask(f.ctx, full, task.ID, got.Version, filter, []string{secret, other})
+	assert.ErrorIs(t, err, ErrNotFound, "full can't see Other")
+	again, _ := f.svc.GetTask(f.ctx, f.admin, task.ID)
+	assert.Equal(t, got.Version, again.Version)
+
+	// nil leaves tags alone.
+	got, err = f.svc.UpdateTask(f.ctx, f.admin, task.ID, got.Version, filter, nil)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{yard, secret}, got.TagIDs)
 }

@@ -1,5 +1,5 @@
 import { api, UrgencyGroup, type Task } from "../api";
-import { daysBetween, formatDate, relativeDue } from "../dates";
+import { daysBetween, formatDate, relativeDue, relativePast } from "../dates";
 import { href } from "../router";
 import { describeSchedule } from "../schedule";
 import { useSession } from "../session";
@@ -43,7 +43,18 @@ export function DueLabel({ task, group }: { task: Task; group?: UrgencyGroup }) 
 }
 
 /** A task in a list, with a quick Done button when it can be done in one tap. */
-export function TaskRow({ task, group, onChanged }: { task: Task; group?: UrgencyGroup; onChanged: (t: Task) => void }) {
+export function TaskRow({
+  task,
+  group,
+  showLastDone,
+  onChanged,
+}: {
+  task: Task;
+  group?: UrgencyGroup;
+  showLastDone?: boolean;
+  onChanged: (t: Task) => void;
+}) {
+  const session = useSession();
   const { busy, error, run } = useRunner();
   const st = task.state!;
   const slot = st.currentSlotId ? slotTitle(task, st.currentSlotId) : "";
@@ -72,6 +83,11 @@ export function TaskRow({ task, group, onChanged }: { task: Task; group?: Urgenc
           <span class="muted">{describeSchedule(task.schedule)}</span>
           {task.archived && <span class="badge">archived</span>}
           <TagChips ids={task.tagIds} />
+          {showLastDone && task.lastDone && (
+            <span class="muted small" title={`Last done ${formatDate(task.lastDone, session.today())}`}>
+              done {relativePast(task.lastDone, session.today())}
+            </span>
+          )}
         </span>
         {error && <span class="error inline">{error}</span>}
       </a>

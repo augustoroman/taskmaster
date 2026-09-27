@@ -52,6 +52,18 @@ export function relativeDue(due: string, ref: string): string {
   return n > 0 ? `in ${span}` : `${span} overdue`;
 }
 
+/** "today", "yesterday", "5 days ago", "3 weeks ago", "4 months ago", "2 years ago". */
+export function relativePast(d: string, ref: string): string {
+  const n = daysBetween(d, ref);
+  if (n <= 0) return "today";
+  if (n === 1) return "yesterday";
+  const plural = (k: number, unit: string) => `${k} ${unit}${k === 1 ? "" : "s"} ago`;
+  if (n < 14) return plural(n, "day");
+  if (n < 60) return plural(Math.round(n / 7), "week");
+  if (n < 730) return plural(Math.round(n / 30), "month");
+  return plural(Math.round(n / 365), "year");
+}
+
 export function formatTimestamp(ts: { seconds: bigint } | undefined): string {
   if (!ts) return "";
   return new Date(Number(ts.seconds) * 1000).toLocaleString(undefined, {
