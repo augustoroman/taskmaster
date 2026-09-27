@@ -320,7 +320,12 @@ type User struct {
 	Name       string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
 	PictureUrl string                 `protobuf:"bytes,4,opt,name=picture_url,json=pictureUrl,proto3" json:"picture_url,omitempty"`
 	// IANA time zone, e.g. "America/Los_Angeles". Empty until set.
-	TimeZone      string `protobuf:"bytes,5,opt,name=time_zone,json=timeZone,proto3" json:"time_zone,omitempty"`
+	TimeZone string `protobuf:"bytes,5,opt,name=time_zone,json=timeZone,proto3" json:"time_zone,omitempty"`
+	// Daily notifications: on or off, and when ("HH:MM" in time_zone).
+	Notify     bool   `protobuf:"varint,6,opt,name=notify,proto3" json:"notify,omitempty"`
+	NotifyTime string `protobuf:"bytes,7,opt,name=notify_time,json=notifyTime,proto3" json:"notify_time,omitempty"`
+	// How many devices get notifications (GetMe/UpdateMe only).
+	PushDevices   int32 `protobuf:"varint,8,opt,name=push_devices,json=pushDevices,proto3" json:"push_devices,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -388,6 +393,27 @@ func (x *User) GetTimeZone() string {
 		return x.TimeZone
 	}
 	return ""
+}
+
+func (x *User) GetNotify() bool {
+	if x != nil {
+		return x.Notify
+	}
+	return false
+}
+
+func (x *User) GetNotifyTime() string {
+	if x != nil {
+		return x.NotifyTime
+	}
+	return ""
+}
+
+func (x *User) GetPushDevices() int32 {
+	if x != nil {
+		return x.PushDevices
+	}
+	return 0
 }
 
 type GetMeRequest struct {
@@ -470,10 +496,13 @@ func (x *GetMeResponse) GetUser() *User {
 	return nil
 }
 
+// Empty or unset fields are left alone.
 type UpdateMeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	TimeZone      string                 `protobuf:"bytes,2,opt,name=time_zone,json=timeZone,proto3" json:"time_zone,omitempty"`
+	Notify        *bool                  `protobuf:"varint,3,opt,name=notify,proto3,oneof" json:"notify,omitempty"`
+	NotifyTime    string                 `protobuf:"bytes,4,opt,name=notify_time,json=notifyTime,proto3" json:"notify_time,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -522,6 +551,360 @@ func (x *UpdateMeRequest) GetTimeZone() string {
 	return ""
 }
 
+func (x *UpdateMeRequest) GetNotify() bool {
+	if x != nil && x.Notify != nil {
+		return *x.Notify
+	}
+	return false
+}
+
+func (x *UpdateMeRequest) GetNotifyTime() string {
+	if x != nil {
+		return x.NotifyTime
+	}
+	return ""
+}
+
+type GetPushConfigRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPushConfigRequest) Reset() {
+	*x = GetPushConfigRequest{}
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPushConfigRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPushConfigRequest) ProtoMessage() {}
+
+func (x *GetPushConfigRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPushConfigRequest.ProtoReflect.Descriptor instead.
+func (*GetPushConfigRequest) Descriptor() ([]byte, []int) {
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{4}
+}
+
+type GetPushConfigResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The VAPID public key to subscribe with (applicationServerKey); empty if
+	// the server can't send notifications.
+	PublicKey     string `protobuf:"bytes,1,opt,name=public_key,json=publicKey,proto3" json:"public_key,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetPushConfigResponse) Reset() {
+	*x = GetPushConfigResponse{}
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetPushConfigResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetPushConfigResponse) ProtoMessage() {}
+
+func (x *GetPushConfigResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetPushConfigResponse.ProtoReflect.Descriptor instead.
+func (*GetPushConfigResponse) Descriptor() ([]byte, []int) {
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *GetPushConfigResponse) GetPublicKey() string {
+	if x != nil {
+		return x.PublicKey
+	}
+	return ""
+}
+
+// Registers this device's push subscription (PushSubscription.toJSON()).
+type RegisterPushRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Endpoint      string                 `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	P256Dh        string                 `protobuf:"bytes,2,opt,name=p256dh,proto3" json:"p256dh,omitempty"`
+	Auth          string                 `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegisterPushRequest) Reset() {
+	*x = RegisterPushRequest{}
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterPushRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterPushRequest) ProtoMessage() {}
+
+func (x *RegisterPushRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterPushRequest.ProtoReflect.Descriptor instead.
+func (*RegisterPushRequest) Descriptor() ([]byte, []int) {
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *RegisterPushRequest) GetEndpoint() string {
+	if x != nil {
+		return x.Endpoint
+	}
+	return ""
+}
+
+func (x *RegisterPushRequest) GetP256Dh() string {
+	if x != nil {
+		return x.P256Dh
+	}
+	return ""
+}
+
+func (x *RegisterPushRequest) GetAuth() string {
+	if x != nil {
+		return x.Auth
+	}
+	return ""
+}
+
+type RegisterPushResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RegisterPushResponse) Reset() {
+	*x = RegisterPushResponse{}
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RegisterPushResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RegisterPushResponse) ProtoMessage() {}
+
+func (x *RegisterPushResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RegisterPushResponse.ProtoReflect.Descriptor instead.
+func (*RegisterPushResponse) Descriptor() ([]byte, []int) {
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{7}
+}
+
+type UnregisterPushRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Endpoint      string                 `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnregisterPushRequest) Reset() {
+	*x = UnregisterPushRequest{}
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnregisterPushRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnregisterPushRequest) ProtoMessage() {}
+
+func (x *UnregisterPushRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnregisterPushRequest.ProtoReflect.Descriptor instead.
+func (*UnregisterPushRequest) Descriptor() ([]byte, []int) {
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *UnregisterPushRequest) GetEndpoint() string {
+	if x != nil {
+		return x.Endpoint
+	}
+	return ""
+}
+
+type UnregisterPushResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnregisterPushResponse) Reset() {
+	*x = UnregisterPushResponse{}
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnregisterPushResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnregisterPushResponse) ProtoMessage() {}
+
+func (x *UnregisterPushResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnregisterPushResponse.ProtoReflect.Descriptor instead.
+func (*UnregisterPushResponse) Descriptor() ([]byte, []int) {
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{9}
+}
+
+type SendTestNotificationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendTestNotificationRequest) Reset() {
+	*x = SendTestNotificationRequest{}
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendTestNotificationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendTestNotificationRequest) ProtoMessage() {}
+
+func (x *SendTestNotificationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendTestNotificationRequest.ProtoReflect.Descriptor instead.
+func (*SendTestNotificationRequest) Descriptor() ([]byte, []int) {
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{10}
+}
+
+type SendTestNotificationResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// How many devices it was delivered to.
+	Delivered     int32 `protobuf:"varint,1,opt,name=delivered,proto3" json:"delivered,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SendTestNotificationResponse) Reset() {
+	*x = SendTestNotificationResponse{}
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SendTestNotificationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SendTestNotificationResponse) ProtoMessage() {}
+
+func (x *SendTestNotificationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SendTestNotificationResponse.ProtoReflect.Descriptor instead.
+func (*SendTestNotificationResponse) Descriptor() ([]byte, []int) {
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SendTestNotificationResponse) GetDelivered() int32 {
+	if x != nil {
+		return x.Delivered
+	}
+	return 0
+}
+
 type UpdateMeResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	User          *User                  `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
@@ -531,7 +914,7 @@ type UpdateMeResponse struct {
 
 func (x *UpdateMeResponse) Reset() {
 	*x = UpdateMeResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[4]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -543,7 +926,7 @@ func (x *UpdateMeResponse) String() string {
 func (*UpdateMeResponse) ProtoMessage() {}
 
 func (x *UpdateMeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[4]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -556,7 +939,7 @@ func (x *UpdateMeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMeResponse.ProtoReflect.Descriptor instead.
 func (*UpdateMeResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{4}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *UpdateMeResponse) GetUser() *User {
@@ -575,14 +958,17 @@ type Tag struct {
 	Owner    *User       `protobuf:"bytes,4,opt,name=owner,proto3" json:"owner,omitempty"`
 	MyAccess AccessLevel `protobuf:"varint,5,opt,name=my_access,json=myAccess,proto3,enum=taskmaster.v1.AccessLevel" json:"my_access,omitempty"`
 	// Hidden by me as a personal filter; doesn't change access.
-	Hidden        bool `protobuf:"varint,6,opt,name=hidden,proto3" json:"hidden,omitempty"`
+	Hidden bool `protobuf:"varint,6,opt,name=hidden,proto3" json:"hidden,omitempty"`
+	// I get notifications for its tasks (default: on for my tags, off for
+	// shared ones).
+	Notify        bool `protobuf:"varint,7,opt,name=notify,proto3" json:"notify,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Tag) Reset() {
 	*x = Tag{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[5]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -594,7 +980,7 @@ func (x *Tag) String() string {
 func (*Tag) ProtoMessage() {}
 
 func (x *Tag) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[5]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -607,7 +993,7 @@ func (x *Tag) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Tag.ProtoReflect.Descriptor instead.
 func (*Tag) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{5}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Tag) GetId() string {
@@ -652,6 +1038,13 @@ func (x *Tag) GetHidden() bool {
 	return false
 }
 
+func (x *Tag) GetNotify() bool {
+	if x != nil {
+		return x.Notify
+	}
+	return false
+}
+
 type ListTagsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -660,7 +1053,7 @@ type ListTagsRequest struct {
 
 func (x *ListTagsRequest) Reset() {
 	*x = ListTagsRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[6]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -672,7 +1065,7 @@ func (x *ListTagsRequest) String() string {
 func (*ListTagsRequest) ProtoMessage() {}
 
 func (x *ListTagsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[6]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -685,7 +1078,7 @@ func (x *ListTagsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTagsRequest.ProtoReflect.Descriptor instead.
 func (*ListTagsRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{6}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{14}
 }
 
 type ListTagsResponse struct {
@@ -697,7 +1090,7 @@ type ListTagsResponse struct {
 
 func (x *ListTagsResponse) Reset() {
 	*x = ListTagsResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[7]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -709,7 +1102,7 @@ func (x *ListTagsResponse) String() string {
 func (*ListTagsResponse) ProtoMessage() {}
 
 func (x *ListTagsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[7]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -722,7 +1115,7 @@ func (x *ListTagsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTagsResponse.ProtoReflect.Descriptor instead.
 func (*ListTagsResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{7}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListTagsResponse) GetTags() []*Tag {
@@ -743,7 +1136,7 @@ type CreateTagRequest struct {
 
 func (x *CreateTagRequest) Reset() {
 	*x = CreateTagRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[8]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -755,7 +1148,7 @@ func (x *CreateTagRequest) String() string {
 func (*CreateTagRequest) ProtoMessage() {}
 
 func (x *CreateTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[8]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -768,7 +1161,7 @@ func (x *CreateTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTagRequest.ProtoReflect.Descriptor instead.
 func (*CreateTagRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{8}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *CreateTagRequest) GetName() string {
@@ -794,7 +1187,7 @@ type CreateTagResponse struct {
 
 func (x *CreateTagResponse) Reset() {
 	*x = CreateTagResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[9]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -806,7 +1199,7 @@ func (x *CreateTagResponse) String() string {
 func (*CreateTagResponse) ProtoMessage() {}
 
 func (x *CreateTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[9]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -819,7 +1212,7 @@ func (x *CreateTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTagResponse.ProtoReflect.Descriptor instead.
 func (*CreateTagResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{9}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CreateTagResponse) GetTag() *Tag {
@@ -842,7 +1235,7 @@ type UpdateTagRequest struct {
 
 func (x *UpdateTagRequest) Reset() {
 	*x = UpdateTagRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[10]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -854,7 +1247,7 @@ func (x *UpdateTagRequest) String() string {
 func (*UpdateTagRequest) ProtoMessage() {}
 
 func (x *UpdateTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[10]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -867,7 +1260,7 @@ func (x *UpdateTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTagRequest.ProtoReflect.Descriptor instead.
 func (*UpdateTagRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{10}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *UpdateTagRequest) GetId() string {
@@ -900,7 +1293,7 @@ type UpdateTagResponse struct {
 
 func (x *UpdateTagResponse) Reset() {
 	*x = UpdateTagResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[11]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -912,7 +1305,7 @@ func (x *UpdateTagResponse) String() string {
 func (*UpdateTagResponse) ProtoMessage() {}
 
 func (x *UpdateTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[11]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -925,7 +1318,7 @@ func (x *UpdateTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTagResponse.ProtoReflect.Descriptor instead.
 func (*UpdateTagResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{11}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *UpdateTagResponse) GetTag() *Tag {
@@ -945,7 +1338,7 @@ type DeleteTagRequest struct {
 
 func (x *DeleteTagRequest) Reset() {
 	*x = DeleteTagRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[12]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -957,7 +1350,7 @@ func (x *DeleteTagRequest) String() string {
 func (*DeleteTagRequest) ProtoMessage() {}
 
 func (x *DeleteTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[12]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -970,7 +1363,7 @@ func (x *DeleteTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTagRequest.ProtoReflect.Descriptor instead.
 func (*DeleteTagRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{12}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *DeleteTagRequest) GetId() string {
@@ -988,7 +1381,7 @@ type DeleteTagResponse struct {
 
 func (x *DeleteTagResponse) Reset() {
 	*x = DeleteTagResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[13]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1000,7 +1393,7 @@ func (x *DeleteTagResponse) String() string {
 func (*DeleteTagResponse) ProtoMessage() {}
 
 func (x *DeleteTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[13]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1013,7 +1406,7 @@ func (x *DeleteTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTagResponse.ProtoReflect.Descriptor instead.
 func (*DeleteTagResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{13}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{21}
 }
 
 type SetTagHiddenRequest struct {
@@ -1026,7 +1419,7 @@ type SetTagHiddenRequest struct {
 
 func (x *SetTagHiddenRequest) Reset() {
 	*x = SetTagHiddenRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[14]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1038,7 +1431,7 @@ func (x *SetTagHiddenRequest) String() string {
 func (*SetTagHiddenRequest) ProtoMessage() {}
 
 func (x *SetTagHiddenRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[14]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1051,7 +1444,7 @@ func (x *SetTagHiddenRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetTagHiddenRequest.ProtoReflect.Descriptor instead.
 func (*SetTagHiddenRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{14}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *SetTagHiddenRequest) GetId() string {
@@ -1076,7 +1469,7 @@ type SetTagHiddenResponse struct {
 
 func (x *SetTagHiddenResponse) Reset() {
 	*x = SetTagHiddenResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[15]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1088,7 +1481,7 @@ func (x *SetTagHiddenResponse) String() string {
 func (*SetTagHiddenResponse) ProtoMessage() {}
 
 func (x *SetTagHiddenResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[15]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1101,7 +1494,7 @@ func (x *SetTagHiddenResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetTagHiddenResponse.ProtoReflect.Descriptor instead.
 func (*SetTagHiddenResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{15}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{23}
 }
 
 // Sets your color for a tag. For the tag's owner this is the tag's color,
@@ -1116,7 +1509,7 @@ type SetTagColorRequest struct {
 
 func (x *SetTagColorRequest) Reset() {
 	*x = SetTagColorRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[16]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1128,7 +1521,7 @@ func (x *SetTagColorRequest) String() string {
 func (*SetTagColorRequest) ProtoMessage() {}
 
 func (x *SetTagColorRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[16]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1141,7 +1534,7 @@ func (x *SetTagColorRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetTagColorRequest.ProtoReflect.Descriptor instead.
 func (*SetTagColorRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{16}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *SetTagColorRequest) GetId() string {
@@ -1166,7 +1559,7 @@ type SetTagColorResponse struct {
 
 func (x *SetTagColorResponse) Reset() {
 	*x = SetTagColorResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[17]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1178,7 +1571,7 @@ func (x *SetTagColorResponse) String() string {
 func (*SetTagColorResponse) ProtoMessage() {}
 
 func (x *SetTagColorResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[17]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1191,7 +1584,95 @@ func (x *SetTagColorResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetTagColorResponse.ProtoReflect.Descriptor instead.
 func (*SetTagColorResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{17}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{25}
+}
+
+type SetTagNotifyRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Notify        bool                   `protobuf:"varint,2,opt,name=notify,proto3" json:"notify,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetTagNotifyRequest) Reset() {
+	*x = SetTagNotifyRequest{}
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetTagNotifyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetTagNotifyRequest) ProtoMessage() {}
+
+func (x *SetTagNotifyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetTagNotifyRequest.ProtoReflect.Descriptor instead.
+func (*SetTagNotifyRequest) Descriptor() ([]byte, []int) {
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *SetTagNotifyRequest) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SetTagNotifyRequest) GetNotify() bool {
+	if x != nil {
+		return x.Notify
+	}
+	return false
+}
+
+type SetTagNotifyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetTagNotifyResponse) Reset() {
+	*x = SetTagNotifyResponse{}
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetTagNotifyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetTagNotifyResponse) ProtoMessage() {}
+
+func (x *SetTagNotifyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetTagNotifyResponse.ProtoReflect.Descriptor instead.
+func (*SetTagNotifyResponse) Descriptor() ([]byte, []int) {
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{27}
 }
 
 type Share struct {
@@ -1209,7 +1690,7 @@ type Share struct {
 
 func (x *Share) Reset() {
 	*x = Share{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[18]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1221,7 +1702,7 @@ func (x *Share) String() string {
 func (*Share) ProtoMessage() {}
 
 func (x *Share) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[18]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1234,7 +1715,7 @@ func (x *Share) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Share.ProtoReflect.Descriptor instead.
 func (*Share) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{18}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *Share) GetId() string {
@@ -1289,7 +1770,7 @@ type ListSharesRequest struct {
 
 func (x *ListSharesRequest) Reset() {
 	*x = ListSharesRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[19]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1301,7 +1782,7 @@ func (x *ListSharesRequest) String() string {
 func (*ListSharesRequest) ProtoMessage() {}
 
 func (x *ListSharesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[19]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1314,7 +1795,7 @@ func (x *ListSharesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSharesRequest.ProtoReflect.Descriptor instead.
 func (*ListSharesRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{19}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *ListSharesRequest) GetTagId() string {
@@ -1333,7 +1814,7 @@ type ListSharesResponse struct {
 
 func (x *ListSharesResponse) Reset() {
 	*x = ListSharesResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[20]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1345,7 +1826,7 @@ func (x *ListSharesResponse) String() string {
 func (*ListSharesResponse) ProtoMessage() {}
 
 func (x *ListSharesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[20]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1358,7 +1839,7 @@ func (x *ListSharesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSharesResponse.ProtoReflect.Descriptor instead.
 func (*ListSharesResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{20}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *ListSharesResponse) GetShares() []*Share {
@@ -1381,7 +1862,7 @@ type ShareTagRequest struct {
 
 func (x *ShareTagRequest) Reset() {
 	*x = ShareTagRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[21]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1393,7 +1874,7 @@ func (x *ShareTagRequest) String() string {
 func (*ShareTagRequest) ProtoMessage() {}
 
 func (x *ShareTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[21]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1406,7 +1887,7 @@ func (x *ShareTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShareTagRequest.ProtoReflect.Descriptor instead.
 func (*ShareTagRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{21}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ShareTagRequest) GetTagId() string {
@@ -1439,7 +1920,7 @@ type ShareTagResponse struct {
 
 func (x *ShareTagResponse) Reset() {
 	*x = ShareTagResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[22]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1451,7 +1932,7 @@ func (x *ShareTagResponse) String() string {
 func (*ShareTagResponse) ProtoMessage() {}
 
 func (x *ShareTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[22]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1464,7 +1945,7 @@ func (x *ShareTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShareTagResponse.ProtoReflect.Descriptor instead.
 func (*ShareTagResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{22}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *ShareTagResponse) GetShare() *Share {
@@ -1484,7 +1965,7 @@ type UpdateShareRequest struct {
 
 func (x *UpdateShareRequest) Reset() {
 	*x = UpdateShareRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[23]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1496,7 +1977,7 @@ func (x *UpdateShareRequest) String() string {
 func (*UpdateShareRequest) ProtoMessage() {}
 
 func (x *UpdateShareRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[23]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1509,7 +1990,7 @@ func (x *UpdateShareRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateShareRequest.ProtoReflect.Descriptor instead.
 func (*UpdateShareRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{23}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *UpdateShareRequest) GetId() string {
@@ -1535,7 +2016,7 @@ type UpdateShareResponse struct {
 
 func (x *UpdateShareResponse) Reset() {
 	*x = UpdateShareResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[24]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1547,7 +2028,7 @@ func (x *UpdateShareResponse) String() string {
 func (*UpdateShareResponse) ProtoMessage() {}
 
 func (x *UpdateShareResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[24]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1560,7 +2041,7 @@ func (x *UpdateShareResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateShareResponse.ProtoReflect.Descriptor instead.
 func (*UpdateShareResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{24}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *UpdateShareResponse) GetShare() *Share {
@@ -1580,7 +2061,7 @@ type RevokeShareRequest struct {
 
 func (x *RevokeShareRequest) Reset() {
 	*x = RevokeShareRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[25]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1592,7 +2073,7 @@ func (x *RevokeShareRequest) String() string {
 func (*RevokeShareRequest) ProtoMessage() {}
 
 func (x *RevokeShareRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[25]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1605,7 +2086,7 @@ func (x *RevokeShareRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeShareRequest.ProtoReflect.Descriptor instead.
 func (*RevokeShareRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{25}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *RevokeShareRequest) GetId() string {
@@ -1623,7 +2104,7 @@ type RevokeShareResponse struct {
 
 func (x *RevokeShareResponse) Reset() {
 	*x = RevokeShareResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[26]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1635,7 +2116,7 @@ func (x *RevokeShareResponse) String() string {
 func (*RevokeShareResponse) ProtoMessage() {}
 
 func (x *RevokeShareResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[26]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1648,7 +2129,7 @@ func (x *RevokeShareResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RevokeShareResponse.ProtoReflect.Descriptor instead.
 func (*RevokeShareResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{26}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{36}
 }
 
 type Schedule struct {
@@ -1670,7 +2151,7 @@ type Schedule struct {
 
 func (x *Schedule) Reset() {
 	*x = Schedule{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[27]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1682,7 +2163,7 @@ func (x *Schedule) String() string {
 func (*Schedule) ProtoMessage() {}
 
 func (x *Schedule) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[27]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1695,7 +2176,7 @@ func (x *Schedule) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Schedule.ProtoReflect.Descriptor instead.
 func (*Schedule) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{27}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *Schedule) GetKind() ScheduleKind {
@@ -1754,7 +2235,7 @@ type Slot struct {
 
 func (x *Slot) Reset() {
 	*x = Slot{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[28]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1766,7 +2247,7 @@ func (x *Slot) String() string {
 func (*Slot) ProtoMessage() {}
 
 func (x *Slot) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[28]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1779,7 +2260,7 @@ func (x *Slot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Slot.ProtoReflect.Descriptor instead.
 func (*Slot) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{28}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *Slot) GetId() string {
@@ -1823,7 +2304,7 @@ type ChecklistItem struct {
 
 func (x *ChecklistItem) Reset() {
 	*x = ChecklistItem{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[29]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1835,7 +2316,7 @@ func (x *ChecklistItem) String() string {
 func (*ChecklistItem) ProtoMessage() {}
 
 func (x *ChecklistItem) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[29]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1848,7 +2329,7 @@ func (x *ChecklistItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ChecklistItem.ProtoReflect.Descriptor instead.
 func (*ChecklistItem) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{29}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ChecklistItem) GetId() string {
@@ -1883,7 +2364,7 @@ type Check struct {
 
 func (x *Check) Reset() {
 	*x = Check{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[30]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1895,7 +2376,7 @@ func (x *Check) String() string {
 func (*Check) ProtoMessage() {}
 
 func (x *Check) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[30]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1908,7 +2389,7 @@ func (x *Check) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Check.ProtoReflect.Descriptor instead.
 func (*Check) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{30}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *Check) GetItemId() string {
@@ -1950,7 +2431,7 @@ type TaskState struct {
 
 func (x *TaskState) Reset() {
 	*x = TaskState{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[31]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1962,7 +2443,7 @@ func (x *TaskState) String() string {
 func (*TaskState) ProtoMessage() {}
 
 func (x *TaskState) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[31]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1975,7 +2456,7 @@ func (x *TaskState) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskState.ProtoReflect.Descriptor instead.
 func (*TaskState) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{31}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *TaskState) GetDue() string {
@@ -2044,7 +2525,7 @@ type Projected struct {
 
 func (x *Projected) Reset() {
 	*x = Projected{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[32]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2056,7 +2537,7 @@ func (x *Projected) String() string {
 func (*Projected) ProtoMessage() {}
 
 func (x *Projected) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[32]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2069,7 +2550,7 @@ func (x *Projected) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Projected.ProtoReflect.Descriptor instead.
 func (*Projected) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{32}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *Projected) GetDue() string {
@@ -2126,7 +2607,7 @@ type Task struct {
 
 func (x *Task) Reset() {
 	*x = Task{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[33]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2138,7 +2619,7 @@ func (x *Task) String() string {
 func (*Task) ProtoMessage() {}
 
 func (x *Task) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[33]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2151,7 +2632,7 @@ func (x *Task) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Task.ProtoReflect.Descriptor instead.
 func (*Task) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{33}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *Task) GetId() string {
@@ -2326,7 +2807,7 @@ type TaskInput struct {
 
 func (x *TaskInput) Reset() {
 	*x = TaskInput{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[34]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2338,7 +2819,7 @@ func (x *TaskInput) String() string {
 func (*TaskInput) ProtoMessage() {}
 
 func (x *TaskInput) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[34]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2351,7 +2832,7 @@ func (x *TaskInput) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskInput.ProtoReflect.Descriptor instead.
 func (*TaskInput) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{34}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *TaskInput) GetTitle() string {
@@ -2427,7 +2908,7 @@ type ListTasksRequest struct {
 
 func (x *ListTasksRequest) Reset() {
 	*x = ListTasksRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[35]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2439,7 +2920,7 @@ func (x *ListTasksRequest) String() string {
 func (*ListTasksRequest) ProtoMessage() {}
 
 func (x *ListTasksRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[35]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2452,7 +2933,7 @@ func (x *ListTasksRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTasksRequest.ProtoReflect.Descriptor instead.
 func (*ListTasksRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{35}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *ListTasksRequest) GetTagIds() []string {
@@ -2499,7 +2980,7 @@ type ListTasksResponse struct {
 
 func (x *ListTasksResponse) Reset() {
 	*x = ListTasksResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[36]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2511,7 +2992,7 @@ func (x *ListTasksResponse) String() string {
 func (*ListTasksResponse) ProtoMessage() {}
 
 func (x *ListTasksResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[36]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2524,7 +3005,7 @@ func (x *ListTasksResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTasksResponse.ProtoReflect.Descriptor instead.
 func (*ListTasksResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{36}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *ListTasksResponse) GetTasks() []*Task {
@@ -2543,7 +3024,7 @@ type GetTaskRequest struct {
 
 func (x *GetTaskRequest) Reset() {
 	*x = GetTaskRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[37]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2555,7 +3036,7 @@ func (x *GetTaskRequest) String() string {
 func (*GetTaskRequest) ProtoMessage() {}
 
 func (x *GetTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[37]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2568,7 +3049,7 @@ func (x *GetTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskRequest.ProtoReflect.Descriptor instead.
 func (*GetTaskRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{37}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *GetTaskRequest) GetId() string {
@@ -2587,7 +3068,7 @@ type GetTaskResponse struct {
 
 func (x *GetTaskResponse) Reset() {
 	*x = GetTaskResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[38]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2599,7 +3080,7 @@ func (x *GetTaskResponse) String() string {
 func (*GetTaskResponse) ProtoMessage() {}
 
 func (x *GetTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[38]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2612,7 +3093,7 @@ func (x *GetTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetTaskResponse.ProtoReflect.Descriptor instead.
 func (*GetTaskResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{38}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *GetTaskResponse) GetTask() *Task {
@@ -2636,7 +3117,7 @@ type CreateTaskRequest struct {
 
 func (x *CreateTaskRequest) Reset() {
 	*x = CreateTaskRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[39]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2648,7 +3129,7 @@ func (x *CreateTaskRequest) String() string {
 func (*CreateTaskRequest) ProtoMessage() {}
 
 func (x *CreateTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[39]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2661,7 +3142,7 @@ func (x *CreateTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTaskRequest.ProtoReflect.Descriptor instead.
 func (*CreateTaskRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{39}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *CreateTaskRequest) GetTask() *TaskInput {
@@ -2694,7 +3175,7 @@ type CreateTaskResponse struct {
 
 func (x *CreateTaskResponse) Reset() {
 	*x = CreateTaskResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[40]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2706,7 +3187,7 @@ func (x *CreateTaskResponse) String() string {
 func (*CreateTaskResponse) ProtoMessage() {}
 
 func (x *CreateTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[40]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2719,7 +3200,7 @@ func (x *CreateTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateTaskResponse.ProtoReflect.Descriptor instead.
 func (*CreateTaskResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{40}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *CreateTaskResponse) GetTask() *Task {
@@ -2749,7 +3230,7 @@ type UpdateTaskRequest struct {
 
 func (x *UpdateTaskRequest) Reset() {
 	*x = UpdateTaskRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[41]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2761,7 +3242,7 @@ func (x *UpdateTaskRequest) String() string {
 func (*UpdateTaskRequest) ProtoMessage() {}
 
 func (x *UpdateTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[41]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2774,7 +3255,7 @@ func (x *UpdateTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTaskRequest.ProtoReflect.Descriptor instead.
 func (*UpdateTaskRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{41}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *UpdateTaskRequest) GetId() string {
@@ -2828,7 +3309,7 @@ type UpdateTaskResponse struct {
 
 func (x *UpdateTaskResponse) Reset() {
 	*x = UpdateTaskResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[42]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2840,7 +3321,7 @@ func (x *UpdateTaskResponse) String() string {
 func (*UpdateTaskResponse) ProtoMessage() {}
 
 func (x *UpdateTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[42]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2853,7 +3334,7 @@ func (x *UpdateTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateTaskResponse.ProtoReflect.Descriptor instead.
 func (*UpdateTaskResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{42}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *UpdateTaskResponse) GetTask() *Task {
@@ -2872,7 +3353,7 @@ type ArchiveTaskRequest struct {
 
 func (x *ArchiveTaskRequest) Reset() {
 	*x = ArchiveTaskRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[43]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2884,7 +3365,7 @@ func (x *ArchiveTaskRequest) String() string {
 func (*ArchiveTaskRequest) ProtoMessage() {}
 
 func (x *ArchiveTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[43]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2897,7 +3378,7 @@ func (x *ArchiveTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveTaskRequest.ProtoReflect.Descriptor instead.
 func (*ArchiveTaskRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{43}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *ArchiveTaskRequest) GetId() string {
@@ -2916,7 +3397,7 @@ type ArchiveTaskResponse struct {
 
 func (x *ArchiveTaskResponse) Reset() {
 	*x = ArchiveTaskResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[44]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2928,7 +3409,7 @@ func (x *ArchiveTaskResponse) String() string {
 func (*ArchiveTaskResponse) ProtoMessage() {}
 
 func (x *ArchiveTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[44]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2941,7 +3422,7 @@ func (x *ArchiveTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArchiveTaskResponse.ProtoReflect.Descriptor instead.
 func (*ArchiveTaskResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{44}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *ArchiveTaskResponse) GetTask() *Task {
@@ -2960,7 +3441,7 @@ type UnarchiveTaskRequest struct {
 
 func (x *UnarchiveTaskRequest) Reset() {
 	*x = UnarchiveTaskRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[45]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2972,7 +3453,7 @@ func (x *UnarchiveTaskRequest) String() string {
 func (*UnarchiveTaskRequest) ProtoMessage() {}
 
 func (x *UnarchiveTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[45]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2985,7 +3466,7 @@ func (x *UnarchiveTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnarchiveTaskRequest.ProtoReflect.Descriptor instead.
 func (*UnarchiveTaskRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{45}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *UnarchiveTaskRequest) GetId() string {
@@ -3004,7 +3485,7 @@ type UnarchiveTaskResponse struct {
 
 func (x *UnarchiveTaskResponse) Reset() {
 	*x = UnarchiveTaskResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[46]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3016,7 +3497,7 @@ func (x *UnarchiveTaskResponse) String() string {
 func (*UnarchiveTaskResponse) ProtoMessage() {}
 
 func (x *UnarchiveTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[46]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3029,7 +3510,7 @@ func (x *UnarchiveTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnarchiveTaskResponse.ProtoReflect.Descriptor instead.
 func (*UnarchiveTaskResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{46}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *UnarchiveTaskResponse) GetTask() *Task {
@@ -3049,7 +3530,7 @@ type DeleteTaskRequest struct {
 
 func (x *DeleteTaskRequest) Reset() {
 	*x = DeleteTaskRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[47]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3061,7 +3542,7 @@ func (x *DeleteTaskRequest) String() string {
 func (*DeleteTaskRequest) ProtoMessage() {}
 
 func (x *DeleteTaskRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[47]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3074,7 +3555,7 @@ func (x *DeleteTaskRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTaskRequest.ProtoReflect.Descriptor instead.
 func (*DeleteTaskRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{47}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *DeleteTaskRequest) GetId() string {
@@ -3092,7 +3573,7 @@ type DeleteTaskResponse struct {
 
 func (x *DeleteTaskResponse) Reset() {
 	*x = DeleteTaskResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[48]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3104,7 +3585,7 @@ func (x *DeleteTaskResponse) String() string {
 func (*DeleteTaskResponse) ProtoMessage() {}
 
 func (x *DeleteTaskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[48]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3117,7 +3598,7 @@ func (x *DeleteTaskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteTaskResponse.ProtoReflect.Descriptor instead.
 func (*DeleteTaskResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{48}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{58}
 }
 
 // Requires full access to the task and the tag.
@@ -3131,7 +3612,7 @@ type AddTaskTagRequest struct {
 
 func (x *AddTaskTagRequest) Reset() {
 	*x = AddTaskTagRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[49]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3143,7 +3624,7 @@ func (x *AddTaskTagRequest) String() string {
 func (*AddTaskTagRequest) ProtoMessage() {}
 
 func (x *AddTaskTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[49]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3156,7 +3637,7 @@ func (x *AddTaskTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddTaskTagRequest.ProtoReflect.Descriptor instead.
 func (*AddTaskTagRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{49}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *AddTaskTagRequest) GetTaskId() string {
@@ -3182,7 +3663,7 @@ type AddTaskTagResponse struct {
 
 func (x *AddTaskTagResponse) Reset() {
 	*x = AddTaskTagResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[50]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3194,7 +3675,7 @@ func (x *AddTaskTagResponse) String() string {
 func (*AddTaskTagResponse) ProtoMessage() {}
 
 func (x *AddTaskTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[50]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3207,7 +3688,7 @@ func (x *AddTaskTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddTaskTagResponse.ProtoReflect.Descriptor instead.
 func (*AddTaskTagResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{50}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *AddTaskTagResponse) GetTask() *Task {
@@ -3227,7 +3708,7 @@ type RemoveTaskTagRequest struct {
 
 func (x *RemoveTaskTagRequest) Reset() {
 	*x = RemoveTaskTagRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[51]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3239,7 +3720,7 @@ func (x *RemoveTaskTagRequest) String() string {
 func (*RemoveTaskTagRequest) ProtoMessage() {}
 
 func (x *RemoveTaskTagRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[51]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3252,7 +3733,7 @@ func (x *RemoveTaskTagRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveTaskTagRequest.ProtoReflect.Descriptor instead.
 func (*RemoveTaskTagRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{51}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *RemoveTaskTagRequest) GetTaskId() string {
@@ -3278,7 +3759,7 @@ type RemoveTaskTagResponse struct {
 
 func (x *RemoveTaskTagResponse) Reset() {
 	*x = RemoveTaskTagResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[52]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3290,7 +3771,7 @@ func (x *RemoveTaskTagResponse) String() string {
 func (*RemoveTaskTagResponse) ProtoMessage() {}
 
 func (x *RemoveTaskTagResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[52]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3303,7 +3784,7 @@ func (x *RemoveTaskTagResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveTaskTagResponse.ProtoReflect.Descriptor instead.
 func (*RemoveTaskTagResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{52}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *RemoveTaskTagResponse) GetTask() *Task {
@@ -3323,7 +3804,7 @@ type ActionResponse struct {
 
 func (x *ActionResponse) Reset() {
 	*x = ActionResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[53]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3335,7 +3816,7 @@ func (x *ActionResponse) String() string {
 func (*ActionResponse) ProtoMessage() {}
 
 func (x *ActionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[53]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3348,7 +3829,7 @@ func (x *ActionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActionResponse.ProtoReflect.Descriptor instead.
 func (*ActionResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{53}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *ActionResponse) GetTask() *Task {
@@ -3379,7 +3860,7 @@ type Offline struct {
 
 func (x *Offline) Reset() {
 	*x = Offline{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[54]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3391,7 +3872,7 @@ func (x *Offline) String() string {
 func (*Offline) ProtoMessage() {}
 
 func (x *Offline) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[54]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3404,7 +3885,7 @@ func (x *Offline) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Offline.ProtoReflect.Descriptor instead.
 func (*Offline) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{54}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *Offline) GetOccurrence() string {
@@ -3440,7 +3921,7 @@ type CompleteRequest struct {
 
 func (x *CompleteRequest) Reset() {
 	*x = CompleteRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[55]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[65]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3452,7 +3933,7 @@ func (x *CompleteRequest) String() string {
 func (*CompleteRequest) ProtoMessage() {}
 
 func (x *CompleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[55]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[65]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3465,7 +3946,7 @@ func (x *CompleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteRequest.ProtoReflect.Descriptor instead.
 func (*CompleteRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{55}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{65}
 }
 
 func (x *CompleteRequest) GetId() string {
@@ -3521,7 +4002,7 @@ type SkipRequest struct {
 
 func (x *SkipRequest) Reset() {
 	*x = SkipRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[56]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[66]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3533,7 +4014,7 @@ func (x *SkipRequest) String() string {
 func (*SkipRequest) ProtoMessage() {}
 
 func (x *SkipRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[56]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[66]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3546,7 +4027,7 @@ func (x *SkipRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkipRequest.ProtoReflect.Descriptor instead.
 func (*SkipRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{56}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{66}
 }
 
 func (x *SkipRequest) GetId() string {
@@ -3585,7 +4066,7 @@ type CheckItemRequest struct {
 
 func (x *CheckItemRequest) Reset() {
 	*x = CheckItemRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[57]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[67]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3597,7 +4078,7 @@ func (x *CheckItemRequest) String() string {
 func (*CheckItemRequest) ProtoMessage() {}
 
 func (x *CheckItemRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[57]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[67]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3610,7 +4091,7 @@ func (x *CheckItemRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckItemRequest.ProtoReflect.Descriptor instead.
 func (*CheckItemRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{57}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{67}
 }
 
 func (x *CheckItemRequest) GetId() string {
@@ -3659,7 +4140,7 @@ type UncheckItemRequest struct {
 
 func (x *UncheckItemRequest) Reset() {
 	*x = UncheckItemRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[58]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[68]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3671,7 +4152,7 @@ func (x *UncheckItemRequest) String() string {
 func (*UncheckItemRequest) ProtoMessage() {}
 
 func (x *UncheckItemRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[58]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[68]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3684,7 +4165,7 @@ func (x *UncheckItemRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UncheckItemRequest.ProtoReflect.Descriptor instead.
 func (*UncheckItemRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{58}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{68}
 }
 
 func (x *UncheckItemRequest) GetId() string {
@@ -3720,7 +4201,7 @@ type DeferRequest struct {
 
 func (x *DeferRequest) Reset() {
 	*x = DeferRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[59]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[69]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3732,7 +4213,7 @@ func (x *DeferRequest) String() string {
 func (*DeferRequest) ProtoMessage() {}
 
 func (x *DeferRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[59]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[69]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3745,7 +4226,7 @@ func (x *DeferRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeferRequest.ProtoReflect.Descriptor instead.
 func (*DeferRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{59}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{69}
 }
 
 func (x *DeferRequest) GetId() string {
@@ -3786,7 +4267,7 @@ type ClearDeferralRequest struct {
 
 func (x *ClearDeferralRequest) Reset() {
 	*x = ClearDeferralRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[60]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[70]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3798,7 +4279,7 @@ func (x *ClearDeferralRequest) String() string {
 func (*ClearDeferralRequest) ProtoMessage() {}
 
 func (x *ClearDeferralRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[60]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[70]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3811,7 +4292,7 @@ func (x *ClearDeferralRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ClearDeferralRequest.ProtoReflect.Descriptor instead.
 func (*ClearDeferralRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{60}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{70}
 }
 
 func (x *ClearDeferralRequest) GetId() string {
@@ -3840,7 +4321,7 @@ type SetCycleSlotRequest struct {
 
 func (x *SetCycleSlotRequest) Reset() {
 	*x = SetCycleSlotRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[61]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[71]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3852,7 +4333,7 @@ func (x *SetCycleSlotRequest) String() string {
 func (*SetCycleSlotRequest) ProtoMessage() {}
 
 func (x *SetCycleSlotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[61]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[71]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3865,7 +4346,7 @@ func (x *SetCycleSlotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetCycleSlotRequest.ProtoReflect.Descriptor instead.
 func (*SetCycleSlotRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{61}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{71}
 }
 
 func (x *SetCycleSlotRequest) GetId() string {
@@ -3910,7 +4391,7 @@ type PauseRequest struct {
 
 func (x *PauseRequest) Reset() {
 	*x = PauseRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[62]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[72]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3922,7 +4403,7 @@ func (x *PauseRequest) String() string {
 func (*PauseRequest) ProtoMessage() {}
 
 func (x *PauseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[62]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[72]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3935,7 +4416,7 @@ func (x *PauseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PauseRequest.ProtoReflect.Descriptor instead.
 func (*PauseRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{62}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{72}
 }
 
 func (x *PauseRequest) GetId() string {
@@ -3978,7 +4459,7 @@ type ResumeRequest struct {
 
 func (x *ResumeRequest) Reset() {
 	*x = ResumeRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[63]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3990,7 +4471,7 @@ func (x *ResumeRequest) String() string {
 func (*ResumeRequest) ProtoMessage() {}
 
 func (x *ResumeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[63]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4003,7 +4484,7 @@ func (x *ResumeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResumeRequest.ProtoReflect.Descriptor instead.
 func (*ResumeRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{63}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *ResumeRequest) GetId() string {
@@ -4040,7 +4521,7 @@ type UndoRequest struct {
 
 func (x *UndoRequest) Reset() {
 	*x = UndoRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[64]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4052,7 +4533,7 @@ func (x *UndoRequest) String() string {
 func (*UndoRequest) ProtoMessage() {}
 
 func (x *UndoRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[64]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4065,7 +4546,7 @@ func (x *UndoRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UndoRequest.ProtoReflect.Descriptor instead.
 func (*UndoRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{64}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *UndoRequest) GetId() string {
@@ -4113,7 +4594,7 @@ type Event struct {
 
 func (x *Event) Reset() {
 	*x = Event{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[65]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4125,7 +4606,7 @@ func (x *Event) String() string {
 func (*Event) ProtoMessage() {}
 
 func (x *Event) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[65]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4138,7 +4619,7 @@ func (x *Event) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Event.ProtoReflect.Descriptor instead.
 func (*Event) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{65}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *Event) GetId() string {
@@ -4268,7 +4749,7 @@ type ListEventsRequest struct {
 
 func (x *ListEventsRequest) Reset() {
 	*x = ListEventsRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[66]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4280,7 +4761,7 @@ func (x *ListEventsRequest) String() string {
 func (*ListEventsRequest) ProtoMessage() {}
 
 func (x *ListEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[66]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4293,7 +4774,7 @@ func (x *ListEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListEventsRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{66}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *ListEventsRequest) GetTaskId() string {
@@ -4335,7 +4816,7 @@ type ListEventsResponse struct {
 
 func (x *ListEventsResponse) Reset() {
 	*x = ListEventsResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[67]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4347,7 +4828,7 @@ func (x *ListEventsResponse) String() string {
 func (*ListEventsResponse) ProtoMessage() {}
 
 func (x *ListEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[67]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4360,7 +4841,7 @@ func (x *ListEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListEventsResponse.ProtoReflect.Descriptor instead.
 func (*ListEventsResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{67}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *ListEventsResponse) GetEvents() []*Event {
@@ -4390,7 +4871,7 @@ type AddNoteRequest struct {
 
 func (x *AddNoteRequest) Reset() {
 	*x = AddNoteRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[68]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4402,7 +4883,7 @@ func (x *AddNoteRequest) String() string {
 func (*AddNoteRequest) ProtoMessage() {}
 
 func (x *AddNoteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[68]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4415,7 +4896,7 @@ func (x *AddNoteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddNoteRequest.ProtoReflect.Descriptor instead.
 func (*AddNoteRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{68}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *AddNoteRequest) GetTaskId() string {
@@ -4448,7 +4929,7 @@ type AddNoteResponse struct {
 
 func (x *AddNoteResponse) Reset() {
 	*x = AddNoteResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[69]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4460,7 +4941,7 @@ func (x *AddNoteResponse) String() string {
 func (*AddNoteResponse) ProtoMessage() {}
 
 func (x *AddNoteResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[69]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4473,7 +4954,7 @@ func (x *AddNoteResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddNoteResponse.ProtoReflect.Descriptor instead.
 func (*AddNoteResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{69}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *AddNoteResponse) GetEvent() *Event {
@@ -4499,7 +4980,7 @@ type EditEventRequest struct {
 
 func (x *EditEventRequest) Reset() {
 	*x = EditEventRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[70]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4511,7 +4992,7 @@ func (x *EditEventRequest) String() string {
 func (*EditEventRequest) ProtoMessage() {}
 
 func (x *EditEventRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[70]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4524,7 +5005,7 @@ func (x *EditEventRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditEventRequest.ProtoReflect.Descriptor instead.
 func (*EditEventRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{70}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *EditEventRequest) GetId() string {
@@ -4565,7 +5046,7 @@ type EditEventResponse struct {
 
 func (x *EditEventResponse) Reset() {
 	*x = EditEventResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[71]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4577,7 +5058,7 @@ func (x *EditEventResponse) String() string {
 func (*EditEventResponse) ProtoMessage() {}
 
 func (x *EditEventResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[71]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4590,7 +5071,7 @@ func (x *EditEventResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EditEventResponse.ProtoReflect.Descriptor instead.
 func (*EditEventResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{71}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *EditEventResponse) GetEvent() *Event {
@@ -4616,7 +5097,7 @@ type DeleteEventRequest struct {
 
 func (x *DeleteEventRequest) Reset() {
 	*x = DeleteEventRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[72]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4628,7 +5109,7 @@ func (x *DeleteEventRequest) String() string {
 func (*DeleteEventRequest) ProtoMessage() {}
 
 func (x *DeleteEventRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[72]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4641,7 +5122,7 @@ func (x *DeleteEventRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteEventRequest.ProtoReflect.Descriptor instead.
 func (*DeleteEventRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{72}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *DeleteEventRequest) GetId() string {
@@ -4660,7 +5141,7 @@ type DeleteEventResponse struct {
 
 func (x *DeleteEventResponse) Reset() {
 	*x = DeleteEventResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[73]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4672,7 +5153,7 @@ func (x *DeleteEventResponse) String() string {
 func (*DeleteEventResponse) ProtoMessage() {}
 
 func (x *DeleteEventResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[73]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4685,7 +5166,7 @@ func (x *DeleteEventResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteEventResponse.ProtoReflect.Descriptor instead.
 func (*DeleteEventResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{73}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *DeleteEventResponse) GetTask() *Task {
@@ -4708,7 +5189,7 @@ type UpcomingItem struct {
 
 func (x *UpcomingItem) Reset() {
 	*x = UpcomingItem{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[74]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4720,7 +5201,7 @@ func (x *UpcomingItem) String() string {
 func (*UpcomingItem) ProtoMessage() {}
 
 func (x *UpcomingItem) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[74]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4733,7 +5214,7 @@ func (x *UpcomingItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpcomingItem.ProtoReflect.Descriptor instead.
 func (*UpcomingItem) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{74}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *UpcomingItem) GetTask() *Task {
@@ -4774,7 +5255,7 @@ type UpcomingRequest struct {
 
 func (x *UpcomingRequest) Reset() {
 	*x = UpcomingRequest{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[75]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4786,7 +5267,7 @@ func (x *UpcomingRequest) String() string {
 func (*UpcomingRequest) ProtoMessage() {}
 
 func (x *UpcomingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[75]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4799,7 +5280,7 @@ func (x *UpcomingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpcomingRequest.ProtoReflect.Descriptor instead.
 func (*UpcomingRequest) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{75}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *UpcomingRequest) GetTagIds() []string {
@@ -4826,7 +5307,7 @@ type UpcomingResponse struct {
 
 func (x *UpcomingResponse) Reset() {
 	*x = UpcomingResponse{}
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[76]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4838,7 +5319,7 @@ func (x *UpcomingResponse) String() string {
 func (*UpcomingResponse) ProtoMessage() {}
 
 func (x *UpcomingResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[76]
+	mi := &file_taskmaster_v1_taskmaster_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4851,7 +5332,7 @@ func (x *UpcomingResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpcomingResponse.ProtoReflect.Descriptor instead.
 func (*UpcomingResponse) Descriptor() ([]byte, []int) {
-	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{76}
+	return file_taskmaster_v1_taskmaster_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *UpcomingResponse) GetItems() []*UpcomingItem {
@@ -4865,29 +5346,53 @@ var File_taskmaster_v1_taskmaster_proto protoreflect.FileDescriptor
 
 const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\n" +
-	"\x1etaskmaster/v1/taskmaster.proto\x12\rtaskmaster.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"~\n" +
+	"\x1etaskmaster/v1/taskmaster.proto\x12\rtaskmaster.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xda\x01\n" +
 	"\x04User\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05email\x18\x02 \x01(\tR\x05email\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x1f\n" +
 	"\vpicture_url\x18\x04 \x01(\tR\n" +
 	"pictureUrl\x12\x1b\n" +
-	"\ttime_zone\x18\x05 \x01(\tR\btimeZone\"\x0e\n" +
+	"\ttime_zone\x18\x05 \x01(\tR\btimeZone\x12\x16\n" +
+	"\x06notify\x18\x06 \x01(\bR\x06notify\x12\x1f\n" +
+	"\vnotify_time\x18\a \x01(\tR\n" +
+	"notifyTime\x12!\n" +
+	"\fpush_devices\x18\b \x01(\x05R\vpushDevices\"\x0e\n" +
 	"\fGetMeRequest\"8\n" +
 	"\rGetMeResponse\x12'\n" +
-	"\x04user\x18\x01 \x01(\v2\x13.taskmaster.v1.UserR\x04user\"B\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.taskmaster.v1.UserR\x04user\"\x8b\x01\n" +
 	"\x0fUpdateMeRequest\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1b\n" +
-	"\ttime_zone\x18\x02 \x01(\tR\btimeZone\";\n" +
+	"\ttime_zone\x18\x02 \x01(\tR\btimeZone\x12\x1b\n" +
+	"\x06notify\x18\x03 \x01(\bH\x00R\x06notify\x88\x01\x01\x12\x1f\n" +
+	"\vnotify_time\x18\x04 \x01(\tR\n" +
+	"notifyTimeB\t\n" +
+	"\a_notify\"\x16\n" +
+	"\x14GetPushConfigRequest\"6\n" +
+	"\x15GetPushConfigResponse\x12\x1d\n" +
+	"\n" +
+	"public_key\x18\x01 \x01(\tR\tpublicKey\"]\n" +
+	"\x13RegisterPushRequest\x12\x1a\n" +
+	"\bendpoint\x18\x01 \x01(\tR\bendpoint\x12\x16\n" +
+	"\x06p256dh\x18\x02 \x01(\tR\x06p256dh\x12\x12\n" +
+	"\x04auth\x18\x03 \x01(\tR\x04auth\"\x16\n" +
+	"\x14RegisterPushResponse\"3\n" +
+	"\x15UnregisterPushRequest\x12\x1a\n" +
+	"\bendpoint\x18\x01 \x01(\tR\bendpoint\"\x18\n" +
+	"\x16UnregisterPushResponse\"\x1d\n" +
+	"\x1bSendTestNotificationRequest\"<\n" +
+	"\x1cSendTestNotificationResponse\x12\x1c\n" +
+	"\tdelivered\x18\x01 \x01(\x05R\tdelivered\";\n" +
 	"\x10UpdateMeResponse\x12'\n" +
-	"\x04user\x18\x01 \x01(\v2\x13.taskmaster.v1.UserR\x04user\"\xbb\x01\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.taskmaster.v1.UserR\x04user\"\xd3\x01\n" +
 	"\x03Tag\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12\x14\n" +
 	"\x05color\x18\x03 \x01(\tR\x05color\x12)\n" +
 	"\x05owner\x18\x04 \x01(\v2\x13.taskmaster.v1.UserR\x05owner\x127\n" +
 	"\tmy_access\x18\x05 \x01(\x0e2\x1a.taskmaster.v1.AccessLevelR\bmyAccess\x12\x16\n" +
-	"\x06hidden\x18\x06 \x01(\bR\x06hidden\"\x11\n" +
+	"\x06hidden\x18\x06 \x01(\bR\x06hidden\x12\x16\n" +
+	"\x06notify\x18\a \x01(\bR\x06notify\"\x11\n" +
 	"\x0fListTagsRequest\":\n" +
 	"\x10ListTagsResponse\x12&\n" +
 	"\x04tags\x18\x01 \x03(\v2\x12.taskmaster.v1.TagR\x04tags\"<\n" +
@@ -4912,7 +5417,11 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\x12SetTagColorRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05color\x18\x02 \x01(\tR\x05color\"\x15\n" +
-	"\x13SetTagColorResponse\"\xda\x01\n" +
+	"\x13SetTagColorResponse\"=\n" +
+	"\x13SetTagNotifyRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x16\n" +
+	"\x06notify\x18\x02 \x01(\bR\x06notify\"\x16\n" +
+	"\x14SetTagNotifyResponse\"\xda\x01\n" +
 	"\x05Share\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x15\n" +
 	"\x06tag_id\x18\x02 \x01(\tR\x05tagId\x12\x14\n" +
@@ -5210,16 +5719,21 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\x19URGENCY_GROUP_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15URGENCY_GROUP_OVERDUE\x10\x01\x12\x17\n" +
 	"\x13URGENCY_GROUP_TODAY\x10\x02\x12\x16\n" +
-	"\x12URGENCY_GROUP_SOON\x10\x032\x90\x17\n" +
+	"\x12URGENCY_GROUP_SOON\x10\x032\xf8\x1a\n" +
 	"\x11TaskmasterService\x12D\n" +
 	"\x05GetMe\x12\x1b.taskmaster.v1.GetMeRequest\x1a\x1c.taskmaster.v1.GetMeResponse\"\x00\x12M\n" +
-	"\bUpdateMe\x12\x1e.taskmaster.v1.UpdateMeRequest\x1a\x1f.taskmaster.v1.UpdateMeResponse\"\x00\x12M\n" +
+	"\bUpdateMe\x12\x1e.taskmaster.v1.UpdateMeRequest\x1a\x1f.taskmaster.v1.UpdateMeResponse\"\x00\x12\\\n" +
+	"\rGetPushConfig\x12#.taskmaster.v1.GetPushConfigRequest\x1a$.taskmaster.v1.GetPushConfigResponse\"\x00\x12Y\n" +
+	"\fRegisterPush\x12\".taskmaster.v1.RegisterPushRequest\x1a#.taskmaster.v1.RegisterPushResponse\"\x00\x12_\n" +
+	"\x0eUnregisterPush\x12$.taskmaster.v1.UnregisterPushRequest\x1a%.taskmaster.v1.UnregisterPushResponse\"\x00\x12q\n" +
+	"\x14SendTestNotification\x12*.taskmaster.v1.SendTestNotificationRequest\x1a+.taskmaster.v1.SendTestNotificationResponse\"\x00\x12M\n" +
 	"\bListTags\x12\x1e.taskmaster.v1.ListTagsRequest\x1a\x1f.taskmaster.v1.ListTagsResponse\"\x00\x12P\n" +
 	"\tCreateTag\x12\x1f.taskmaster.v1.CreateTagRequest\x1a .taskmaster.v1.CreateTagResponse\"\x00\x12P\n" +
 	"\tUpdateTag\x12\x1f.taskmaster.v1.UpdateTagRequest\x1a .taskmaster.v1.UpdateTagResponse\"\x00\x12P\n" +
 	"\tDeleteTag\x12\x1f.taskmaster.v1.DeleteTagRequest\x1a .taskmaster.v1.DeleteTagResponse\"\x00\x12Y\n" +
 	"\fSetTagHidden\x12\".taskmaster.v1.SetTagHiddenRequest\x1a#.taskmaster.v1.SetTagHiddenResponse\"\x00\x12V\n" +
-	"\vSetTagColor\x12!.taskmaster.v1.SetTagColorRequest\x1a\".taskmaster.v1.SetTagColorResponse\"\x00\x12S\n" +
+	"\vSetTagColor\x12!.taskmaster.v1.SetTagColorRequest\x1a\".taskmaster.v1.SetTagColorResponse\"\x00\x12Y\n" +
+	"\fSetTagNotify\x12\".taskmaster.v1.SetTagNotifyRequest\x1a#.taskmaster.v1.SetTagNotifyResponse\"\x00\x12S\n" +
 	"\n" +
 	"ListShares\x12 .taskmaster.v1.ListSharesRequest\x1a!.taskmaster.v1.ListSharesResponse\"\x00\x12M\n" +
 	"\bShareTag\x12\x1e.taskmaster.v1.ShareTagRequest\x1a\x1f.taskmaster.v1.ShareTagResponse\"\x00\x12V\n" +
@@ -5268,225 +5782,245 @@ func file_taskmaster_v1_taskmaster_proto_rawDescGZIP() []byte {
 }
 
 var file_taskmaster_v1_taskmaster_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_taskmaster_v1_taskmaster_proto_msgTypes = make([]protoimpl.MessageInfo, 77)
+var file_taskmaster_v1_taskmaster_proto_msgTypes = make([]protoimpl.MessageInfo, 87)
 var file_taskmaster_v1_taskmaster_proto_goTypes = []any{
-	(AccessLevel)(0),              // 0: taskmaster.v1.AccessLevel
-	(ScheduleKind)(0),             // 1: taskmaster.v1.ScheduleKind
-	(IntervalUnit)(0),             // 2: taskmaster.v1.IntervalUnit
-	(EventKind)(0),                // 3: taskmaster.v1.EventKind
-	(UrgencyGroup)(0),             // 4: taskmaster.v1.UrgencyGroup
-	(*User)(nil),                  // 5: taskmaster.v1.User
-	(*GetMeRequest)(nil),          // 6: taskmaster.v1.GetMeRequest
-	(*GetMeResponse)(nil),         // 7: taskmaster.v1.GetMeResponse
-	(*UpdateMeRequest)(nil),       // 8: taskmaster.v1.UpdateMeRequest
-	(*UpdateMeResponse)(nil),      // 9: taskmaster.v1.UpdateMeResponse
-	(*Tag)(nil),                   // 10: taskmaster.v1.Tag
-	(*ListTagsRequest)(nil),       // 11: taskmaster.v1.ListTagsRequest
-	(*ListTagsResponse)(nil),      // 12: taskmaster.v1.ListTagsResponse
-	(*CreateTagRequest)(nil),      // 13: taskmaster.v1.CreateTagRequest
-	(*CreateTagResponse)(nil),     // 14: taskmaster.v1.CreateTagResponse
-	(*UpdateTagRequest)(nil),      // 15: taskmaster.v1.UpdateTagRequest
-	(*UpdateTagResponse)(nil),     // 16: taskmaster.v1.UpdateTagResponse
-	(*DeleteTagRequest)(nil),      // 17: taskmaster.v1.DeleteTagRequest
-	(*DeleteTagResponse)(nil),     // 18: taskmaster.v1.DeleteTagResponse
-	(*SetTagHiddenRequest)(nil),   // 19: taskmaster.v1.SetTagHiddenRequest
-	(*SetTagHiddenResponse)(nil),  // 20: taskmaster.v1.SetTagHiddenResponse
-	(*SetTagColorRequest)(nil),    // 21: taskmaster.v1.SetTagColorRequest
-	(*SetTagColorResponse)(nil),   // 22: taskmaster.v1.SetTagColorResponse
-	(*Share)(nil),                 // 23: taskmaster.v1.Share
-	(*ListSharesRequest)(nil),     // 24: taskmaster.v1.ListSharesRequest
-	(*ListSharesResponse)(nil),    // 25: taskmaster.v1.ListSharesResponse
-	(*ShareTagRequest)(nil),       // 26: taskmaster.v1.ShareTagRequest
-	(*ShareTagResponse)(nil),      // 27: taskmaster.v1.ShareTagResponse
-	(*UpdateShareRequest)(nil),    // 28: taskmaster.v1.UpdateShareRequest
-	(*UpdateShareResponse)(nil),   // 29: taskmaster.v1.UpdateShareResponse
-	(*RevokeShareRequest)(nil),    // 30: taskmaster.v1.RevokeShareRequest
-	(*RevokeShareResponse)(nil),   // 31: taskmaster.v1.RevokeShareResponse
-	(*Schedule)(nil),              // 32: taskmaster.v1.Schedule
-	(*Slot)(nil),                  // 33: taskmaster.v1.Slot
-	(*ChecklistItem)(nil),         // 34: taskmaster.v1.ChecklistItem
-	(*Check)(nil),                 // 35: taskmaster.v1.Check
-	(*TaskState)(nil),             // 36: taskmaster.v1.TaskState
-	(*Projected)(nil),             // 37: taskmaster.v1.Projected
-	(*Task)(nil),                  // 38: taskmaster.v1.Task
-	(*TaskInput)(nil),             // 39: taskmaster.v1.TaskInput
-	(*ListTasksRequest)(nil),      // 40: taskmaster.v1.ListTasksRequest
-	(*ListTasksResponse)(nil),     // 41: taskmaster.v1.ListTasksResponse
-	(*GetTaskRequest)(nil),        // 42: taskmaster.v1.GetTaskRequest
-	(*GetTaskResponse)(nil),       // 43: taskmaster.v1.GetTaskResponse
-	(*CreateTaskRequest)(nil),     // 44: taskmaster.v1.CreateTaskRequest
-	(*CreateTaskResponse)(nil),    // 45: taskmaster.v1.CreateTaskResponse
-	(*UpdateTaskRequest)(nil),     // 46: taskmaster.v1.UpdateTaskRequest
-	(*UpdateTaskResponse)(nil),    // 47: taskmaster.v1.UpdateTaskResponse
-	(*ArchiveTaskRequest)(nil),    // 48: taskmaster.v1.ArchiveTaskRequest
-	(*ArchiveTaskResponse)(nil),   // 49: taskmaster.v1.ArchiveTaskResponse
-	(*UnarchiveTaskRequest)(nil),  // 50: taskmaster.v1.UnarchiveTaskRequest
-	(*UnarchiveTaskResponse)(nil), // 51: taskmaster.v1.UnarchiveTaskResponse
-	(*DeleteTaskRequest)(nil),     // 52: taskmaster.v1.DeleteTaskRequest
-	(*DeleteTaskResponse)(nil),    // 53: taskmaster.v1.DeleteTaskResponse
-	(*AddTaskTagRequest)(nil),     // 54: taskmaster.v1.AddTaskTagRequest
-	(*AddTaskTagResponse)(nil),    // 55: taskmaster.v1.AddTaskTagResponse
-	(*RemoveTaskTagRequest)(nil),  // 56: taskmaster.v1.RemoveTaskTagRequest
-	(*RemoveTaskTagResponse)(nil), // 57: taskmaster.v1.RemoveTaskTagResponse
-	(*ActionResponse)(nil),        // 58: taskmaster.v1.ActionResponse
-	(*Offline)(nil),               // 59: taskmaster.v1.Offline
-	(*CompleteRequest)(nil),       // 60: taskmaster.v1.CompleteRequest
-	(*SkipRequest)(nil),           // 61: taskmaster.v1.SkipRequest
-	(*CheckItemRequest)(nil),      // 62: taskmaster.v1.CheckItemRequest
-	(*UncheckItemRequest)(nil),    // 63: taskmaster.v1.UncheckItemRequest
-	(*DeferRequest)(nil),          // 64: taskmaster.v1.DeferRequest
-	(*ClearDeferralRequest)(nil),  // 65: taskmaster.v1.ClearDeferralRequest
-	(*SetCycleSlotRequest)(nil),   // 66: taskmaster.v1.SetCycleSlotRequest
-	(*PauseRequest)(nil),          // 67: taskmaster.v1.PauseRequest
-	(*ResumeRequest)(nil),         // 68: taskmaster.v1.ResumeRequest
-	(*UndoRequest)(nil),           // 69: taskmaster.v1.UndoRequest
-	(*Event)(nil),                 // 70: taskmaster.v1.Event
-	(*ListEventsRequest)(nil),     // 71: taskmaster.v1.ListEventsRequest
-	(*ListEventsResponse)(nil),    // 72: taskmaster.v1.ListEventsResponse
-	(*AddNoteRequest)(nil),        // 73: taskmaster.v1.AddNoteRequest
-	(*AddNoteResponse)(nil),       // 74: taskmaster.v1.AddNoteResponse
-	(*EditEventRequest)(nil),      // 75: taskmaster.v1.EditEventRequest
-	(*EditEventResponse)(nil),     // 76: taskmaster.v1.EditEventResponse
-	(*DeleteEventRequest)(nil),    // 77: taskmaster.v1.DeleteEventRequest
-	(*DeleteEventResponse)(nil),   // 78: taskmaster.v1.DeleteEventResponse
-	(*UpcomingItem)(nil),          // 79: taskmaster.v1.UpcomingItem
-	(*UpcomingRequest)(nil),       // 80: taskmaster.v1.UpcomingRequest
-	(*UpcomingResponse)(nil),      // 81: taskmaster.v1.UpcomingResponse
-	(*timestamppb.Timestamp)(nil), // 82: google.protobuf.Timestamp
+	(AccessLevel)(0),                     // 0: taskmaster.v1.AccessLevel
+	(ScheduleKind)(0),                    // 1: taskmaster.v1.ScheduleKind
+	(IntervalUnit)(0),                    // 2: taskmaster.v1.IntervalUnit
+	(EventKind)(0),                       // 3: taskmaster.v1.EventKind
+	(UrgencyGroup)(0),                    // 4: taskmaster.v1.UrgencyGroup
+	(*User)(nil),                         // 5: taskmaster.v1.User
+	(*GetMeRequest)(nil),                 // 6: taskmaster.v1.GetMeRequest
+	(*GetMeResponse)(nil),                // 7: taskmaster.v1.GetMeResponse
+	(*UpdateMeRequest)(nil),              // 8: taskmaster.v1.UpdateMeRequest
+	(*GetPushConfigRequest)(nil),         // 9: taskmaster.v1.GetPushConfigRequest
+	(*GetPushConfigResponse)(nil),        // 10: taskmaster.v1.GetPushConfigResponse
+	(*RegisterPushRequest)(nil),          // 11: taskmaster.v1.RegisterPushRequest
+	(*RegisterPushResponse)(nil),         // 12: taskmaster.v1.RegisterPushResponse
+	(*UnregisterPushRequest)(nil),        // 13: taskmaster.v1.UnregisterPushRequest
+	(*UnregisterPushResponse)(nil),       // 14: taskmaster.v1.UnregisterPushResponse
+	(*SendTestNotificationRequest)(nil),  // 15: taskmaster.v1.SendTestNotificationRequest
+	(*SendTestNotificationResponse)(nil), // 16: taskmaster.v1.SendTestNotificationResponse
+	(*UpdateMeResponse)(nil),             // 17: taskmaster.v1.UpdateMeResponse
+	(*Tag)(nil),                          // 18: taskmaster.v1.Tag
+	(*ListTagsRequest)(nil),              // 19: taskmaster.v1.ListTagsRequest
+	(*ListTagsResponse)(nil),             // 20: taskmaster.v1.ListTagsResponse
+	(*CreateTagRequest)(nil),             // 21: taskmaster.v1.CreateTagRequest
+	(*CreateTagResponse)(nil),            // 22: taskmaster.v1.CreateTagResponse
+	(*UpdateTagRequest)(nil),             // 23: taskmaster.v1.UpdateTagRequest
+	(*UpdateTagResponse)(nil),            // 24: taskmaster.v1.UpdateTagResponse
+	(*DeleteTagRequest)(nil),             // 25: taskmaster.v1.DeleteTagRequest
+	(*DeleteTagResponse)(nil),            // 26: taskmaster.v1.DeleteTagResponse
+	(*SetTagHiddenRequest)(nil),          // 27: taskmaster.v1.SetTagHiddenRequest
+	(*SetTagHiddenResponse)(nil),         // 28: taskmaster.v1.SetTagHiddenResponse
+	(*SetTagColorRequest)(nil),           // 29: taskmaster.v1.SetTagColorRequest
+	(*SetTagColorResponse)(nil),          // 30: taskmaster.v1.SetTagColorResponse
+	(*SetTagNotifyRequest)(nil),          // 31: taskmaster.v1.SetTagNotifyRequest
+	(*SetTagNotifyResponse)(nil),         // 32: taskmaster.v1.SetTagNotifyResponse
+	(*Share)(nil),                        // 33: taskmaster.v1.Share
+	(*ListSharesRequest)(nil),            // 34: taskmaster.v1.ListSharesRequest
+	(*ListSharesResponse)(nil),           // 35: taskmaster.v1.ListSharesResponse
+	(*ShareTagRequest)(nil),              // 36: taskmaster.v1.ShareTagRequest
+	(*ShareTagResponse)(nil),             // 37: taskmaster.v1.ShareTagResponse
+	(*UpdateShareRequest)(nil),           // 38: taskmaster.v1.UpdateShareRequest
+	(*UpdateShareResponse)(nil),          // 39: taskmaster.v1.UpdateShareResponse
+	(*RevokeShareRequest)(nil),           // 40: taskmaster.v1.RevokeShareRequest
+	(*RevokeShareResponse)(nil),          // 41: taskmaster.v1.RevokeShareResponse
+	(*Schedule)(nil),                     // 42: taskmaster.v1.Schedule
+	(*Slot)(nil),                         // 43: taskmaster.v1.Slot
+	(*ChecklistItem)(nil),                // 44: taskmaster.v1.ChecklistItem
+	(*Check)(nil),                        // 45: taskmaster.v1.Check
+	(*TaskState)(nil),                    // 46: taskmaster.v1.TaskState
+	(*Projected)(nil),                    // 47: taskmaster.v1.Projected
+	(*Task)(nil),                         // 48: taskmaster.v1.Task
+	(*TaskInput)(nil),                    // 49: taskmaster.v1.TaskInput
+	(*ListTasksRequest)(nil),             // 50: taskmaster.v1.ListTasksRequest
+	(*ListTasksResponse)(nil),            // 51: taskmaster.v1.ListTasksResponse
+	(*GetTaskRequest)(nil),               // 52: taskmaster.v1.GetTaskRequest
+	(*GetTaskResponse)(nil),              // 53: taskmaster.v1.GetTaskResponse
+	(*CreateTaskRequest)(nil),            // 54: taskmaster.v1.CreateTaskRequest
+	(*CreateTaskResponse)(nil),           // 55: taskmaster.v1.CreateTaskResponse
+	(*UpdateTaskRequest)(nil),            // 56: taskmaster.v1.UpdateTaskRequest
+	(*UpdateTaskResponse)(nil),           // 57: taskmaster.v1.UpdateTaskResponse
+	(*ArchiveTaskRequest)(nil),           // 58: taskmaster.v1.ArchiveTaskRequest
+	(*ArchiveTaskResponse)(nil),          // 59: taskmaster.v1.ArchiveTaskResponse
+	(*UnarchiveTaskRequest)(nil),         // 60: taskmaster.v1.UnarchiveTaskRequest
+	(*UnarchiveTaskResponse)(nil),        // 61: taskmaster.v1.UnarchiveTaskResponse
+	(*DeleteTaskRequest)(nil),            // 62: taskmaster.v1.DeleteTaskRequest
+	(*DeleteTaskResponse)(nil),           // 63: taskmaster.v1.DeleteTaskResponse
+	(*AddTaskTagRequest)(nil),            // 64: taskmaster.v1.AddTaskTagRequest
+	(*AddTaskTagResponse)(nil),           // 65: taskmaster.v1.AddTaskTagResponse
+	(*RemoveTaskTagRequest)(nil),         // 66: taskmaster.v1.RemoveTaskTagRequest
+	(*RemoveTaskTagResponse)(nil),        // 67: taskmaster.v1.RemoveTaskTagResponse
+	(*ActionResponse)(nil),               // 68: taskmaster.v1.ActionResponse
+	(*Offline)(nil),                      // 69: taskmaster.v1.Offline
+	(*CompleteRequest)(nil),              // 70: taskmaster.v1.CompleteRequest
+	(*SkipRequest)(nil),                  // 71: taskmaster.v1.SkipRequest
+	(*CheckItemRequest)(nil),             // 72: taskmaster.v1.CheckItemRequest
+	(*UncheckItemRequest)(nil),           // 73: taskmaster.v1.UncheckItemRequest
+	(*DeferRequest)(nil),                 // 74: taskmaster.v1.DeferRequest
+	(*ClearDeferralRequest)(nil),         // 75: taskmaster.v1.ClearDeferralRequest
+	(*SetCycleSlotRequest)(nil),          // 76: taskmaster.v1.SetCycleSlotRequest
+	(*PauseRequest)(nil),                 // 77: taskmaster.v1.PauseRequest
+	(*ResumeRequest)(nil),                // 78: taskmaster.v1.ResumeRequest
+	(*UndoRequest)(nil),                  // 79: taskmaster.v1.UndoRequest
+	(*Event)(nil),                        // 80: taskmaster.v1.Event
+	(*ListEventsRequest)(nil),            // 81: taskmaster.v1.ListEventsRequest
+	(*ListEventsResponse)(nil),           // 82: taskmaster.v1.ListEventsResponse
+	(*AddNoteRequest)(nil),               // 83: taskmaster.v1.AddNoteRequest
+	(*AddNoteResponse)(nil),              // 84: taskmaster.v1.AddNoteResponse
+	(*EditEventRequest)(nil),             // 85: taskmaster.v1.EditEventRequest
+	(*EditEventResponse)(nil),            // 86: taskmaster.v1.EditEventResponse
+	(*DeleteEventRequest)(nil),           // 87: taskmaster.v1.DeleteEventRequest
+	(*DeleteEventResponse)(nil),          // 88: taskmaster.v1.DeleteEventResponse
+	(*UpcomingItem)(nil),                 // 89: taskmaster.v1.UpcomingItem
+	(*UpcomingRequest)(nil),              // 90: taskmaster.v1.UpcomingRequest
+	(*UpcomingResponse)(nil),             // 91: taskmaster.v1.UpcomingResponse
+	(*timestamppb.Timestamp)(nil),        // 92: google.protobuf.Timestamp
 }
 var file_taskmaster_v1_taskmaster_proto_depIdxs = []int32{
 	5,  // 0: taskmaster.v1.GetMeResponse.user:type_name -> taskmaster.v1.User
 	5,  // 1: taskmaster.v1.UpdateMeResponse.user:type_name -> taskmaster.v1.User
 	5,  // 2: taskmaster.v1.Tag.owner:type_name -> taskmaster.v1.User
 	0,  // 3: taskmaster.v1.Tag.my_access:type_name -> taskmaster.v1.AccessLevel
-	10, // 4: taskmaster.v1.ListTagsResponse.tags:type_name -> taskmaster.v1.Tag
-	10, // 5: taskmaster.v1.CreateTagResponse.tag:type_name -> taskmaster.v1.Tag
-	10, // 6: taskmaster.v1.UpdateTagResponse.tag:type_name -> taskmaster.v1.Tag
+	18, // 4: taskmaster.v1.ListTagsResponse.tags:type_name -> taskmaster.v1.Tag
+	18, // 5: taskmaster.v1.CreateTagResponse.tag:type_name -> taskmaster.v1.Tag
+	18, // 6: taskmaster.v1.UpdateTagResponse.tag:type_name -> taskmaster.v1.Tag
 	5,  // 7: taskmaster.v1.Share.user:type_name -> taskmaster.v1.User
 	0,  // 8: taskmaster.v1.Share.level:type_name -> taskmaster.v1.AccessLevel
-	82, // 9: taskmaster.v1.Share.created_at:type_name -> google.protobuf.Timestamp
-	23, // 10: taskmaster.v1.ListSharesResponse.shares:type_name -> taskmaster.v1.Share
+	92, // 9: taskmaster.v1.Share.created_at:type_name -> google.protobuf.Timestamp
+	33, // 10: taskmaster.v1.ListSharesResponse.shares:type_name -> taskmaster.v1.Share
 	0,  // 11: taskmaster.v1.ShareTagRequest.level:type_name -> taskmaster.v1.AccessLevel
-	23, // 12: taskmaster.v1.ShareTagResponse.share:type_name -> taskmaster.v1.Share
+	33, // 12: taskmaster.v1.ShareTagResponse.share:type_name -> taskmaster.v1.Share
 	0,  // 13: taskmaster.v1.UpdateShareRequest.level:type_name -> taskmaster.v1.AccessLevel
-	23, // 14: taskmaster.v1.UpdateShareResponse.share:type_name -> taskmaster.v1.Share
+	33, // 14: taskmaster.v1.UpdateShareResponse.share:type_name -> taskmaster.v1.Share
 	1,  // 15: taskmaster.v1.Schedule.kind:type_name -> taskmaster.v1.ScheduleKind
 	2,  // 16: taskmaster.v1.Schedule.interval_unit:type_name -> taskmaster.v1.IntervalUnit
 	5,  // 17: taskmaster.v1.Check.user:type_name -> taskmaster.v1.User
-	35, // 18: taskmaster.v1.TaskState.checks:type_name -> taskmaster.v1.Check
-	32, // 19: taskmaster.v1.Task.schedule:type_name -> taskmaster.v1.Schedule
-	33, // 20: taskmaster.v1.Task.slots:type_name -> taskmaster.v1.Slot
-	34, // 21: taskmaster.v1.Task.checklist:type_name -> taskmaster.v1.ChecklistItem
+	45, // 18: taskmaster.v1.TaskState.checks:type_name -> taskmaster.v1.Check
+	42, // 19: taskmaster.v1.Task.schedule:type_name -> taskmaster.v1.Schedule
+	43, // 20: taskmaster.v1.Task.slots:type_name -> taskmaster.v1.Slot
+	44, // 21: taskmaster.v1.Task.checklist:type_name -> taskmaster.v1.ChecklistItem
 	5,  // 22: taskmaster.v1.Task.creator:type_name -> taskmaster.v1.User
-	82, // 23: taskmaster.v1.Task.created_at:type_name -> google.protobuf.Timestamp
-	82, // 24: taskmaster.v1.Task.updated_at:type_name -> google.protobuf.Timestamp
-	36, // 25: taskmaster.v1.Task.state:type_name -> taskmaster.v1.TaskState
+	92, // 23: taskmaster.v1.Task.created_at:type_name -> google.protobuf.Timestamp
+	92, // 24: taskmaster.v1.Task.updated_at:type_name -> google.protobuf.Timestamp
+	46, // 25: taskmaster.v1.Task.state:type_name -> taskmaster.v1.TaskState
 	0,  // 26: taskmaster.v1.Task.my_access:type_name -> taskmaster.v1.AccessLevel
-	37, // 27: taskmaster.v1.Task.projected:type_name -> taskmaster.v1.Projected
-	32, // 28: taskmaster.v1.TaskInput.schedule:type_name -> taskmaster.v1.Schedule
-	33, // 29: taskmaster.v1.TaskInput.slots:type_name -> taskmaster.v1.Slot
-	34, // 30: taskmaster.v1.TaskInput.checklist:type_name -> taskmaster.v1.ChecklistItem
-	82, // 31: taskmaster.v1.ListTasksRequest.updated_since:type_name -> google.protobuf.Timestamp
-	38, // 32: taskmaster.v1.ListTasksResponse.tasks:type_name -> taskmaster.v1.Task
-	38, // 33: taskmaster.v1.GetTaskResponse.task:type_name -> taskmaster.v1.Task
-	39, // 34: taskmaster.v1.CreateTaskRequest.task:type_name -> taskmaster.v1.TaskInput
-	38, // 35: taskmaster.v1.CreateTaskResponse.task:type_name -> taskmaster.v1.Task
-	39, // 36: taskmaster.v1.UpdateTaskRequest.task:type_name -> taskmaster.v1.TaskInput
-	38, // 37: taskmaster.v1.UpdateTaskResponse.task:type_name -> taskmaster.v1.Task
-	38, // 38: taskmaster.v1.ArchiveTaskResponse.task:type_name -> taskmaster.v1.Task
-	38, // 39: taskmaster.v1.UnarchiveTaskResponse.task:type_name -> taskmaster.v1.Task
-	38, // 40: taskmaster.v1.AddTaskTagResponse.task:type_name -> taskmaster.v1.Task
-	38, // 41: taskmaster.v1.RemoveTaskTagResponse.task:type_name -> taskmaster.v1.Task
-	38, // 42: taskmaster.v1.ActionResponse.task:type_name -> taskmaster.v1.Task
-	70, // 43: taskmaster.v1.ActionResponse.events:type_name -> taskmaster.v1.Event
-	59, // 44: taskmaster.v1.CompleteRequest.offline:type_name -> taskmaster.v1.Offline
-	59, // 45: taskmaster.v1.CheckItemRequest.offline:type_name -> taskmaster.v1.Offline
+	47, // 27: taskmaster.v1.Task.projected:type_name -> taskmaster.v1.Projected
+	42, // 28: taskmaster.v1.TaskInput.schedule:type_name -> taskmaster.v1.Schedule
+	43, // 29: taskmaster.v1.TaskInput.slots:type_name -> taskmaster.v1.Slot
+	44, // 30: taskmaster.v1.TaskInput.checklist:type_name -> taskmaster.v1.ChecklistItem
+	92, // 31: taskmaster.v1.ListTasksRequest.updated_since:type_name -> google.protobuf.Timestamp
+	48, // 32: taskmaster.v1.ListTasksResponse.tasks:type_name -> taskmaster.v1.Task
+	48, // 33: taskmaster.v1.GetTaskResponse.task:type_name -> taskmaster.v1.Task
+	49, // 34: taskmaster.v1.CreateTaskRequest.task:type_name -> taskmaster.v1.TaskInput
+	48, // 35: taskmaster.v1.CreateTaskResponse.task:type_name -> taskmaster.v1.Task
+	49, // 36: taskmaster.v1.UpdateTaskRequest.task:type_name -> taskmaster.v1.TaskInput
+	48, // 37: taskmaster.v1.UpdateTaskResponse.task:type_name -> taskmaster.v1.Task
+	48, // 38: taskmaster.v1.ArchiveTaskResponse.task:type_name -> taskmaster.v1.Task
+	48, // 39: taskmaster.v1.UnarchiveTaskResponse.task:type_name -> taskmaster.v1.Task
+	48, // 40: taskmaster.v1.AddTaskTagResponse.task:type_name -> taskmaster.v1.Task
+	48, // 41: taskmaster.v1.RemoveTaskTagResponse.task:type_name -> taskmaster.v1.Task
+	48, // 42: taskmaster.v1.ActionResponse.task:type_name -> taskmaster.v1.Task
+	80, // 43: taskmaster.v1.ActionResponse.events:type_name -> taskmaster.v1.Event
+	69, // 44: taskmaster.v1.CompleteRequest.offline:type_name -> taskmaster.v1.Offline
+	69, // 45: taskmaster.v1.CheckItemRequest.offline:type_name -> taskmaster.v1.Offline
 	3,  // 46: taskmaster.v1.Event.kind:type_name -> taskmaster.v1.EventKind
 	5,  // 47: taskmaster.v1.Event.user:type_name -> taskmaster.v1.User
-	82, // 48: taskmaster.v1.Event.created_at:type_name -> google.protobuf.Timestamp
-	82, // 49: taskmaster.v1.Event.edited_at:type_name -> google.protobuf.Timestamp
-	70, // 50: taskmaster.v1.ListEventsResponse.events:type_name -> taskmaster.v1.Event
-	70, // 51: taskmaster.v1.AddNoteResponse.event:type_name -> taskmaster.v1.Event
-	70, // 52: taskmaster.v1.EditEventResponse.event:type_name -> taskmaster.v1.Event
-	38, // 53: taskmaster.v1.EditEventResponse.task:type_name -> taskmaster.v1.Task
-	38, // 54: taskmaster.v1.DeleteEventResponse.task:type_name -> taskmaster.v1.Task
-	38, // 55: taskmaster.v1.UpcomingItem.task:type_name -> taskmaster.v1.Task
+	92, // 48: taskmaster.v1.Event.created_at:type_name -> google.protobuf.Timestamp
+	92, // 49: taskmaster.v1.Event.edited_at:type_name -> google.protobuf.Timestamp
+	80, // 50: taskmaster.v1.ListEventsResponse.events:type_name -> taskmaster.v1.Event
+	80, // 51: taskmaster.v1.AddNoteResponse.event:type_name -> taskmaster.v1.Event
+	80, // 52: taskmaster.v1.EditEventResponse.event:type_name -> taskmaster.v1.Event
+	48, // 53: taskmaster.v1.EditEventResponse.task:type_name -> taskmaster.v1.Task
+	48, // 54: taskmaster.v1.DeleteEventResponse.task:type_name -> taskmaster.v1.Task
+	48, // 55: taskmaster.v1.UpcomingItem.task:type_name -> taskmaster.v1.Task
 	4,  // 56: taskmaster.v1.UpcomingItem.group:type_name -> taskmaster.v1.UrgencyGroup
-	79, // 57: taskmaster.v1.UpcomingResponse.items:type_name -> taskmaster.v1.UpcomingItem
+	89, // 57: taskmaster.v1.UpcomingResponse.items:type_name -> taskmaster.v1.UpcomingItem
 	6,  // 58: taskmaster.v1.TaskmasterService.GetMe:input_type -> taskmaster.v1.GetMeRequest
 	8,  // 59: taskmaster.v1.TaskmasterService.UpdateMe:input_type -> taskmaster.v1.UpdateMeRequest
-	11, // 60: taskmaster.v1.TaskmasterService.ListTags:input_type -> taskmaster.v1.ListTagsRequest
-	13, // 61: taskmaster.v1.TaskmasterService.CreateTag:input_type -> taskmaster.v1.CreateTagRequest
-	15, // 62: taskmaster.v1.TaskmasterService.UpdateTag:input_type -> taskmaster.v1.UpdateTagRequest
-	17, // 63: taskmaster.v1.TaskmasterService.DeleteTag:input_type -> taskmaster.v1.DeleteTagRequest
-	19, // 64: taskmaster.v1.TaskmasterService.SetTagHidden:input_type -> taskmaster.v1.SetTagHiddenRequest
-	21, // 65: taskmaster.v1.TaskmasterService.SetTagColor:input_type -> taskmaster.v1.SetTagColorRequest
-	24, // 66: taskmaster.v1.TaskmasterService.ListShares:input_type -> taskmaster.v1.ListSharesRequest
-	26, // 67: taskmaster.v1.TaskmasterService.ShareTag:input_type -> taskmaster.v1.ShareTagRequest
-	28, // 68: taskmaster.v1.TaskmasterService.UpdateShare:input_type -> taskmaster.v1.UpdateShareRequest
-	30, // 69: taskmaster.v1.TaskmasterService.RevokeShare:input_type -> taskmaster.v1.RevokeShareRequest
-	40, // 70: taskmaster.v1.TaskmasterService.ListTasks:input_type -> taskmaster.v1.ListTasksRequest
-	42, // 71: taskmaster.v1.TaskmasterService.GetTask:input_type -> taskmaster.v1.GetTaskRequest
-	44, // 72: taskmaster.v1.TaskmasterService.CreateTask:input_type -> taskmaster.v1.CreateTaskRequest
-	46, // 73: taskmaster.v1.TaskmasterService.UpdateTask:input_type -> taskmaster.v1.UpdateTaskRequest
-	48, // 74: taskmaster.v1.TaskmasterService.ArchiveTask:input_type -> taskmaster.v1.ArchiveTaskRequest
-	50, // 75: taskmaster.v1.TaskmasterService.UnarchiveTask:input_type -> taskmaster.v1.UnarchiveTaskRequest
-	52, // 76: taskmaster.v1.TaskmasterService.DeleteTask:input_type -> taskmaster.v1.DeleteTaskRequest
-	54, // 77: taskmaster.v1.TaskmasterService.AddTaskTag:input_type -> taskmaster.v1.AddTaskTagRequest
-	56, // 78: taskmaster.v1.TaskmasterService.RemoveTaskTag:input_type -> taskmaster.v1.RemoveTaskTagRequest
-	60, // 79: taskmaster.v1.TaskmasterService.Complete:input_type -> taskmaster.v1.CompleteRequest
-	61, // 80: taskmaster.v1.TaskmasterService.Skip:input_type -> taskmaster.v1.SkipRequest
-	62, // 81: taskmaster.v1.TaskmasterService.CheckItem:input_type -> taskmaster.v1.CheckItemRequest
-	63, // 82: taskmaster.v1.TaskmasterService.UncheckItem:input_type -> taskmaster.v1.UncheckItemRequest
-	64, // 83: taskmaster.v1.TaskmasterService.Defer:input_type -> taskmaster.v1.DeferRequest
-	65, // 84: taskmaster.v1.TaskmasterService.ClearDeferral:input_type -> taskmaster.v1.ClearDeferralRequest
-	66, // 85: taskmaster.v1.TaskmasterService.SetCycleSlot:input_type -> taskmaster.v1.SetCycleSlotRequest
-	67, // 86: taskmaster.v1.TaskmasterService.Pause:input_type -> taskmaster.v1.PauseRequest
-	68, // 87: taskmaster.v1.TaskmasterService.Resume:input_type -> taskmaster.v1.ResumeRequest
-	69, // 88: taskmaster.v1.TaskmasterService.Undo:input_type -> taskmaster.v1.UndoRequest
-	71, // 89: taskmaster.v1.TaskmasterService.ListEvents:input_type -> taskmaster.v1.ListEventsRequest
-	73, // 90: taskmaster.v1.TaskmasterService.AddNote:input_type -> taskmaster.v1.AddNoteRequest
-	75, // 91: taskmaster.v1.TaskmasterService.EditEvent:input_type -> taskmaster.v1.EditEventRequest
-	77, // 92: taskmaster.v1.TaskmasterService.DeleteEvent:input_type -> taskmaster.v1.DeleteEventRequest
-	80, // 93: taskmaster.v1.TaskmasterService.Upcoming:input_type -> taskmaster.v1.UpcomingRequest
-	7,  // 94: taskmaster.v1.TaskmasterService.GetMe:output_type -> taskmaster.v1.GetMeResponse
-	9,  // 95: taskmaster.v1.TaskmasterService.UpdateMe:output_type -> taskmaster.v1.UpdateMeResponse
-	12, // 96: taskmaster.v1.TaskmasterService.ListTags:output_type -> taskmaster.v1.ListTagsResponse
-	14, // 97: taskmaster.v1.TaskmasterService.CreateTag:output_type -> taskmaster.v1.CreateTagResponse
-	16, // 98: taskmaster.v1.TaskmasterService.UpdateTag:output_type -> taskmaster.v1.UpdateTagResponse
-	18, // 99: taskmaster.v1.TaskmasterService.DeleteTag:output_type -> taskmaster.v1.DeleteTagResponse
-	20, // 100: taskmaster.v1.TaskmasterService.SetTagHidden:output_type -> taskmaster.v1.SetTagHiddenResponse
-	22, // 101: taskmaster.v1.TaskmasterService.SetTagColor:output_type -> taskmaster.v1.SetTagColorResponse
-	25, // 102: taskmaster.v1.TaskmasterService.ListShares:output_type -> taskmaster.v1.ListSharesResponse
-	27, // 103: taskmaster.v1.TaskmasterService.ShareTag:output_type -> taskmaster.v1.ShareTagResponse
-	29, // 104: taskmaster.v1.TaskmasterService.UpdateShare:output_type -> taskmaster.v1.UpdateShareResponse
-	31, // 105: taskmaster.v1.TaskmasterService.RevokeShare:output_type -> taskmaster.v1.RevokeShareResponse
-	41, // 106: taskmaster.v1.TaskmasterService.ListTasks:output_type -> taskmaster.v1.ListTasksResponse
-	43, // 107: taskmaster.v1.TaskmasterService.GetTask:output_type -> taskmaster.v1.GetTaskResponse
-	45, // 108: taskmaster.v1.TaskmasterService.CreateTask:output_type -> taskmaster.v1.CreateTaskResponse
-	47, // 109: taskmaster.v1.TaskmasterService.UpdateTask:output_type -> taskmaster.v1.UpdateTaskResponse
-	49, // 110: taskmaster.v1.TaskmasterService.ArchiveTask:output_type -> taskmaster.v1.ArchiveTaskResponse
-	51, // 111: taskmaster.v1.TaskmasterService.UnarchiveTask:output_type -> taskmaster.v1.UnarchiveTaskResponse
-	53, // 112: taskmaster.v1.TaskmasterService.DeleteTask:output_type -> taskmaster.v1.DeleteTaskResponse
-	55, // 113: taskmaster.v1.TaskmasterService.AddTaskTag:output_type -> taskmaster.v1.AddTaskTagResponse
-	57, // 114: taskmaster.v1.TaskmasterService.RemoveTaskTag:output_type -> taskmaster.v1.RemoveTaskTagResponse
-	58, // 115: taskmaster.v1.TaskmasterService.Complete:output_type -> taskmaster.v1.ActionResponse
-	58, // 116: taskmaster.v1.TaskmasterService.Skip:output_type -> taskmaster.v1.ActionResponse
-	58, // 117: taskmaster.v1.TaskmasterService.CheckItem:output_type -> taskmaster.v1.ActionResponse
-	58, // 118: taskmaster.v1.TaskmasterService.UncheckItem:output_type -> taskmaster.v1.ActionResponse
-	58, // 119: taskmaster.v1.TaskmasterService.Defer:output_type -> taskmaster.v1.ActionResponse
-	58, // 120: taskmaster.v1.TaskmasterService.ClearDeferral:output_type -> taskmaster.v1.ActionResponse
-	58, // 121: taskmaster.v1.TaskmasterService.SetCycleSlot:output_type -> taskmaster.v1.ActionResponse
-	58, // 122: taskmaster.v1.TaskmasterService.Pause:output_type -> taskmaster.v1.ActionResponse
-	58, // 123: taskmaster.v1.TaskmasterService.Resume:output_type -> taskmaster.v1.ActionResponse
-	58, // 124: taskmaster.v1.TaskmasterService.Undo:output_type -> taskmaster.v1.ActionResponse
-	72, // 125: taskmaster.v1.TaskmasterService.ListEvents:output_type -> taskmaster.v1.ListEventsResponse
-	74, // 126: taskmaster.v1.TaskmasterService.AddNote:output_type -> taskmaster.v1.AddNoteResponse
-	76, // 127: taskmaster.v1.TaskmasterService.EditEvent:output_type -> taskmaster.v1.EditEventResponse
-	78, // 128: taskmaster.v1.TaskmasterService.DeleteEvent:output_type -> taskmaster.v1.DeleteEventResponse
-	81, // 129: taskmaster.v1.TaskmasterService.Upcoming:output_type -> taskmaster.v1.UpcomingResponse
-	94, // [94:130] is the sub-list for method output_type
-	58, // [58:94] is the sub-list for method input_type
+	9,  // 60: taskmaster.v1.TaskmasterService.GetPushConfig:input_type -> taskmaster.v1.GetPushConfigRequest
+	11, // 61: taskmaster.v1.TaskmasterService.RegisterPush:input_type -> taskmaster.v1.RegisterPushRequest
+	13, // 62: taskmaster.v1.TaskmasterService.UnregisterPush:input_type -> taskmaster.v1.UnregisterPushRequest
+	15, // 63: taskmaster.v1.TaskmasterService.SendTestNotification:input_type -> taskmaster.v1.SendTestNotificationRequest
+	19, // 64: taskmaster.v1.TaskmasterService.ListTags:input_type -> taskmaster.v1.ListTagsRequest
+	21, // 65: taskmaster.v1.TaskmasterService.CreateTag:input_type -> taskmaster.v1.CreateTagRequest
+	23, // 66: taskmaster.v1.TaskmasterService.UpdateTag:input_type -> taskmaster.v1.UpdateTagRequest
+	25, // 67: taskmaster.v1.TaskmasterService.DeleteTag:input_type -> taskmaster.v1.DeleteTagRequest
+	27, // 68: taskmaster.v1.TaskmasterService.SetTagHidden:input_type -> taskmaster.v1.SetTagHiddenRequest
+	29, // 69: taskmaster.v1.TaskmasterService.SetTagColor:input_type -> taskmaster.v1.SetTagColorRequest
+	31, // 70: taskmaster.v1.TaskmasterService.SetTagNotify:input_type -> taskmaster.v1.SetTagNotifyRequest
+	34, // 71: taskmaster.v1.TaskmasterService.ListShares:input_type -> taskmaster.v1.ListSharesRequest
+	36, // 72: taskmaster.v1.TaskmasterService.ShareTag:input_type -> taskmaster.v1.ShareTagRequest
+	38, // 73: taskmaster.v1.TaskmasterService.UpdateShare:input_type -> taskmaster.v1.UpdateShareRequest
+	40, // 74: taskmaster.v1.TaskmasterService.RevokeShare:input_type -> taskmaster.v1.RevokeShareRequest
+	50, // 75: taskmaster.v1.TaskmasterService.ListTasks:input_type -> taskmaster.v1.ListTasksRequest
+	52, // 76: taskmaster.v1.TaskmasterService.GetTask:input_type -> taskmaster.v1.GetTaskRequest
+	54, // 77: taskmaster.v1.TaskmasterService.CreateTask:input_type -> taskmaster.v1.CreateTaskRequest
+	56, // 78: taskmaster.v1.TaskmasterService.UpdateTask:input_type -> taskmaster.v1.UpdateTaskRequest
+	58, // 79: taskmaster.v1.TaskmasterService.ArchiveTask:input_type -> taskmaster.v1.ArchiveTaskRequest
+	60, // 80: taskmaster.v1.TaskmasterService.UnarchiveTask:input_type -> taskmaster.v1.UnarchiveTaskRequest
+	62, // 81: taskmaster.v1.TaskmasterService.DeleteTask:input_type -> taskmaster.v1.DeleteTaskRequest
+	64, // 82: taskmaster.v1.TaskmasterService.AddTaskTag:input_type -> taskmaster.v1.AddTaskTagRequest
+	66, // 83: taskmaster.v1.TaskmasterService.RemoveTaskTag:input_type -> taskmaster.v1.RemoveTaskTagRequest
+	70, // 84: taskmaster.v1.TaskmasterService.Complete:input_type -> taskmaster.v1.CompleteRequest
+	71, // 85: taskmaster.v1.TaskmasterService.Skip:input_type -> taskmaster.v1.SkipRequest
+	72, // 86: taskmaster.v1.TaskmasterService.CheckItem:input_type -> taskmaster.v1.CheckItemRequest
+	73, // 87: taskmaster.v1.TaskmasterService.UncheckItem:input_type -> taskmaster.v1.UncheckItemRequest
+	74, // 88: taskmaster.v1.TaskmasterService.Defer:input_type -> taskmaster.v1.DeferRequest
+	75, // 89: taskmaster.v1.TaskmasterService.ClearDeferral:input_type -> taskmaster.v1.ClearDeferralRequest
+	76, // 90: taskmaster.v1.TaskmasterService.SetCycleSlot:input_type -> taskmaster.v1.SetCycleSlotRequest
+	77, // 91: taskmaster.v1.TaskmasterService.Pause:input_type -> taskmaster.v1.PauseRequest
+	78, // 92: taskmaster.v1.TaskmasterService.Resume:input_type -> taskmaster.v1.ResumeRequest
+	79, // 93: taskmaster.v1.TaskmasterService.Undo:input_type -> taskmaster.v1.UndoRequest
+	81, // 94: taskmaster.v1.TaskmasterService.ListEvents:input_type -> taskmaster.v1.ListEventsRequest
+	83, // 95: taskmaster.v1.TaskmasterService.AddNote:input_type -> taskmaster.v1.AddNoteRequest
+	85, // 96: taskmaster.v1.TaskmasterService.EditEvent:input_type -> taskmaster.v1.EditEventRequest
+	87, // 97: taskmaster.v1.TaskmasterService.DeleteEvent:input_type -> taskmaster.v1.DeleteEventRequest
+	90, // 98: taskmaster.v1.TaskmasterService.Upcoming:input_type -> taskmaster.v1.UpcomingRequest
+	7,  // 99: taskmaster.v1.TaskmasterService.GetMe:output_type -> taskmaster.v1.GetMeResponse
+	17, // 100: taskmaster.v1.TaskmasterService.UpdateMe:output_type -> taskmaster.v1.UpdateMeResponse
+	10, // 101: taskmaster.v1.TaskmasterService.GetPushConfig:output_type -> taskmaster.v1.GetPushConfigResponse
+	12, // 102: taskmaster.v1.TaskmasterService.RegisterPush:output_type -> taskmaster.v1.RegisterPushResponse
+	14, // 103: taskmaster.v1.TaskmasterService.UnregisterPush:output_type -> taskmaster.v1.UnregisterPushResponse
+	16, // 104: taskmaster.v1.TaskmasterService.SendTestNotification:output_type -> taskmaster.v1.SendTestNotificationResponse
+	20, // 105: taskmaster.v1.TaskmasterService.ListTags:output_type -> taskmaster.v1.ListTagsResponse
+	22, // 106: taskmaster.v1.TaskmasterService.CreateTag:output_type -> taskmaster.v1.CreateTagResponse
+	24, // 107: taskmaster.v1.TaskmasterService.UpdateTag:output_type -> taskmaster.v1.UpdateTagResponse
+	26, // 108: taskmaster.v1.TaskmasterService.DeleteTag:output_type -> taskmaster.v1.DeleteTagResponse
+	28, // 109: taskmaster.v1.TaskmasterService.SetTagHidden:output_type -> taskmaster.v1.SetTagHiddenResponse
+	30, // 110: taskmaster.v1.TaskmasterService.SetTagColor:output_type -> taskmaster.v1.SetTagColorResponse
+	32, // 111: taskmaster.v1.TaskmasterService.SetTagNotify:output_type -> taskmaster.v1.SetTagNotifyResponse
+	35, // 112: taskmaster.v1.TaskmasterService.ListShares:output_type -> taskmaster.v1.ListSharesResponse
+	37, // 113: taskmaster.v1.TaskmasterService.ShareTag:output_type -> taskmaster.v1.ShareTagResponse
+	39, // 114: taskmaster.v1.TaskmasterService.UpdateShare:output_type -> taskmaster.v1.UpdateShareResponse
+	41, // 115: taskmaster.v1.TaskmasterService.RevokeShare:output_type -> taskmaster.v1.RevokeShareResponse
+	51, // 116: taskmaster.v1.TaskmasterService.ListTasks:output_type -> taskmaster.v1.ListTasksResponse
+	53, // 117: taskmaster.v1.TaskmasterService.GetTask:output_type -> taskmaster.v1.GetTaskResponse
+	55, // 118: taskmaster.v1.TaskmasterService.CreateTask:output_type -> taskmaster.v1.CreateTaskResponse
+	57, // 119: taskmaster.v1.TaskmasterService.UpdateTask:output_type -> taskmaster.v1.UpdateTaskResponse
+	59, // 120: taskmaster.v1.TaskmasterService.ArchiveTask:output_type -> taskmaster.v1.ArchiveTaskResponse
+	61, // 121: taskmaster.v1.TaskmasterService.UnarchiveTask:output_type -> taskmaster.v1.UnarchiveTaskResponse
+	63, // 122: taskmaster.v1.TaskmasterService.DeleteTask:output_type -> taskmaster.v1.DeleteTaskResponse
+	65, // 123: taskmaster.v1.TaskmasterService.AddTaskTag:output_type -> taskmaster.v1.AddTaskTagResponse
+	67, // 124: taskmaster.v1.TaskmasterService.RemoveTaskTag:output_type -> taskmaster.v1.RemoveTaskTagResponse
+	68, // 125: taskmaster.v1.TaskmasterService.Complete:output_type -> taskmaster.v1.ActionResponse
+	68, // 126: taskmaster.v1.TaskmasterService.Skip:output_type -> taskmaster.v1.ActionResponse
+	68, // 127: taskmaster.v1.TaskmasterService.CheckItem:output_type -> taskmaster.v1.ActionResponse
+	68, // 128: taskmaster.v1.TaskmasterService.UncheckItem:output_type -> taskmaster.v1.ActionResponse
+	68, // 129: taskmaster.v1.TaskmasterService.Defer:output_type -> taskmaster.v1.ActionResponse
+	68, // 130: taskmaster.v1.TaskmasterService.ClearDeferral:output_type -> taskmaster.v1.ActionResponse
+	68, // 131: taskmaster.v1.TaskmasterService.SetCycleSlot:output_type -> taskmaster.v1.ActionResponse
+	68, // 132: taskmaster.v1.TaskmasterService.Pause:output_type -> taskmaster.v1.ActionResponse
+	68, // 133: taskmaster.v1.TaskmasterService.Resume:output_type -> taskmaster.v1.ActionResponse
+	68, // 134: taskmaster.v1.TaskmasterService.Undo:output_type -> taskmaster.v1.ActionResponse
+	82, // 135: taskmaster.v1.TaskmasterService.ListEvents:output_type -> taskmaster.v1.ListEventsResponse
+	84, // 136: taskmaster.v1.TaskmasterService.AddNote:output_type -> taskmaster.v1.AddNoteResponse
+	86, // 137: taskmaster.v1.TaskmasterService.EditEvent:output_type -> taskmaster.v1.EditEventResponse
+	88, // 138: taskmaster.v1.TaskmasterService.DeleteEvent:output_type -> taskmaster.v1.DeleteEventResponse
+	91, // 139: taskmaster.v1.TaskmasterService.Upcoming:output_type -> taskmaster.v1.UpcomingResponse
+	99, // [99:140] is the sub-list for method output_type
+	58, // [58:99] is the sub-list for method input_type
 	58, // [58:58] is the sub-list for extension type_name
 	58, // [58:58] is the sub-list for extension extendee
 	0,  // [0:58] is the sub-list for field type_name
@@ -5497,14 +6031,15 @@ func file_taskmaster_v1_taskmaster_proto_init() {
 	if File_taskmaster_v1_taskmaster_proto != nil {
 		return
 	}
-	file_taskmaster_v1_taskmaster_proto_msgTypes[70].OneofWrappers = []any{}
+	file_taskmaster_v1_taskmaster_proto_msgTypes[3].OneofWrappers = []any{}
+	file_taskmaster_v1_taskmaster_proto_msgTypes[80].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_taskmaster_v1_taskmaster_proto_rawDesc), len(file_taskmaster_v1_taskmaster_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   77,
+			NumMessages:   87,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -37,6 +37,16 @@ func userPB(u *store.User) *pb.User {
 	return &pb.User{Id: u.ID, Email: u.Email, Name: u.Name, PictureUrl: u.Picture, TimeZone: u.TZ}
 }
 
+// mePB is the full profile, only for the user themselves.
+func mePB(u *store.User, devices int) *pb.User {
+	if u == nil {
+		return nil
+	}
+	p := userPB(u)
+	p.Notify, p.NotifyTime, p.PushDevices = u.Notify, u.NotifyTime, int32(devices)
+	return p
+}
+
 var levels = map[store.Level]pb.AccessLevel{
 	store.LevelNone: pb.AccessLevel_ACCESS_LEVEL_UNSPECIFIED,
 	store.LevelRead: pb.AccessLevel_ACCESS_LEVEL_READ,
@@ -54,7 +64,7 @@ func levelFrom(l pb.AccessLevel) store.Level {
 }
 
 func tagPB(t *app.TagView) *pb.Tag {
-	return &pb.Tag{Id: t.ID, Name: t.Name, Color: t.Color, Owner: userPB(t.Owner), MyAccess: levels[t.Level], Hidden: t.Hidden}
+	return &pb.Tag{Id: t.ID, Name: t.Name, Color: t.Color, Owner: userPB(t.Owner), MyAccess: levels[t.Level], Hidden: t.Hidden, Notify: t.Notify}
 }
 
 func sharePB(s *app.ShareView) *pb.Share {

@@ -30,6 +30,9 @@ type UserTag struct {
 	Tag
 	Level  Level
 	Hidden bool
+	// Notify: whether they get notifications for the tag's tasks (by default,
+	// on for their own tags and off for shared ones).
+	Notify bool
 }
 
 type Share struct {
@@ -93,7 +96,8 @@ func (tx *Tx) UserTags(userID string) ([]UserTag, error) {
 		            ELSE COALESCE(NULLIF(p.color, ''), NULLIF(s.color, ''), g.color) END,
 		       g.created_at,
 		       CASE WHEN g.owner_id = ?1 THEN 3 ELSE s.level END,
-		       COALESCE(p.hidden, 0)
+		       COALESCE(p.hidden, 0),
+		       COALESCE(p.notify, g.owner_id = ?1)
 		FROM tags g
 		LEFT JOIN tag_shares s ON s.tag_id = g.id AND s.user_id = ?1
 		LEFT JOIN tag_prefs p ON p.tag_id = g.id AND p.user_id = ?1
@@ -107,7 +111,7 @@ func (tx *Tx) UserTags(userID string) ([]UserTag, error) {
 	for rows.Next() {
 		var t UserTag
 		var created string
-		if err := rows.Scan(&t.ID, &t.OwnerID, &t.Name, &t.Color, &created, &t.Level, &t.Hidden); err != nil {
+		if err := rows.Scan(&t.ID, &t.OwnerID, &t.Name, &t.Color, &created, &t.Level, &t.Hidden, &t.Notify); err != nil {
 			return nil, err
 		}
 		t.CreatedAt = parseTS(created)
@@ -122,6 +126,13 @@ func (tx *Tx) SetTagColor(userID, tagID, color string) error {
 	_, err := tx.exec(`
 		INSERT INTO tag_prefs (user_id, tag_id, color) VALUES (?, ?, ?)
 		ON CONFLICT (user_id, tag_id) DO UPDATE SET color = excluded.color`, userID, tagID, color)
+	return err
+}
+
+func (tx *Tx) SetTagNotify(userID, tagID string, notify bool) error {
+	_, err := tx.exec(`
+		INSERT INTO tag_prefs (user_id, tag_id, notify) VALUES (?, ?, ?)
+		ON CONFLICT (user_id, tag_id) DO UPDATE SET notify = excluded.notify`, userID, tagID, notify)
 	return err
 }
 

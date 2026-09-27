@@ -38,6 +38,18 @@ const (
 	// TaskmasterServiceUpdateMeProcedure is the fully-qualified name of the TaskmasterService's
 	// UpdateMe RPC.
 	TaskmasterServiceUpdateMeProcedure = "/taskmaster.v1.TaskmasterService/UpdateMe"
+	// TaskmasterServiceGetPushConfigProcedure is the fully-qualified name of the TaskmasterService's
+	// GetPushConfig RPC.
+	TaskmasterServiceGetPushConfigProcedure = "/taskmaster.v1.TaskmasterService/GetPushConfig"
+	// TaskmasterServiceRegisterPushProcedure is the fully-qualified name of the TaskmasterService's
+	// RegisterPush RPC.
+	TaskmasterServiceRegisterPushProcedure = "/taskmaster.v1.TaskmasterService/RegisterPush"
+	// TaskmasterServiceUnregisterPushProcedure is the fully-qualified name of the TaskmasterService's
+	// UnregisterPush RPC.
+	TaskmasterServiceUnregisterPushProcedure = "/taskmaster.v1.TaskmasterService/UnregisterPush"
+	// TaskmasterServiceSendTestNotificationProcedure is the fully-qualified name of the
+	// TaskmasterService's SendTestNotification RPC.
+	TaskmasterServiceSendTestNotificationProcedure = "/taskmaster.v1.TaskmasterService/SendTestNotification"
 	// TaskmasterServiceListTagsProcedure is the fully-qualified name of the TaskmasterService's
 	// ListTags RPC.
 	TaskmasterServiceListTagsProcedure = "/taskmaster.v1.TaskmasterService/ListTags"
@@ -56,6 +68,9 @@ const (
 	// TaskmasterServiceSetTagColorProcedure is the fully-qualified name of the TaskmasterService's
 	// SetTagColor RPC.
 	TaskmasterServiceSetTagColorProcedure = "/taskmaster.v1.TaskmasterService/SetTagColor"
+	// TaskmasterServiceSetTagNotifyProcedure is the fully-qualified name of the TaskmasterService's
+	// SetTagNotify RPC.
+	TaskmasterServiceSetTagNotifyProcedure = "/taskmaster.v1.TaskmasterService/SetTagNotify"
 	// TaskmasterServiceListSharesProcedure is the fully-qualified name of the TaskmasterService's
 	// ListShares RPC.
 	TaskmasterServiceListSharesProcedure = "/taskmaster.v1.TaskmasterService/ListShares"
@@ -142,12 +157,17 @@ const (
 type TaskmasterServiceClient interface {
 	GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error)
 	UpdateMe(context.Context, *connect.Request[v1.UpdateMeRequest]) (*connect.Response[v1.UpdateMeResponse], error)
+	GetPushConfig(context.Context, *connect.Request[v1.GetPushConfigRequest]) (*connect.Response[v1.GetPushConfigResponse], error)
+	RegisterPush(context.Context, *connect.Request[v1.RegisterPushRequest]) (*connect.Response[v1.RegisterPushResponse], error)
+	UnregisterPush(context.Context, *connect.Request[v1.UnregisterPushRequest]) (*connect.Response[v1.UnregisterPushResponse], error)
+	SendTestNotification(context.Context, *connect.Request[v1.SendTestNotificationRequest]) (*connect.Response[v1.SendTestNotificationResponse], error)
 	ListTags(context.Context, *connect.Request[v1.ListTagsRequest]) (*connect.Response[v1.ListTagsResponse], error)
 	CreateTag(context.Context, *connect.Request[v1.CreateTagRequest]) (*connect.Response[v1.CreateTagResponse], error)
 	UpdateTag(context.Context, *connect.Request[v1.UpdateTagRequest]) (*connect.Response[v1.UpdateTagResponse], error)
 	DeleteTag(context.Context, *connect.Request[v1.DeleteTagRequest]) (*connect.Response[v1.DeleteTagResponse], error)
 	SetTagHidden(context.Context, *connect.Request[v1.SetTagHiddenRequest]) (*connect.Response[v1.SetTagHiddenResponse], error)
 	SetTagColor(context.Context, *connect.Request[v1.SetTagColorRequest]) (*connect.Response[v1.SetTagColorResponse], error)
+	SetTagNotify(context.Context, *connect.Request[v1.SetTagNotifyRequest]) (*connect.Response[v1.SetTagNotifyResponse], error)
 	ListShares(context.Context, *connect.Request[v1.ListSharesRequest]) (*connect.Response[v1.ListSharesResponse], error)
 	ShareTag(context.Context, *connect.Request[v1.ShareTagRequest]) (*connect.Response[v1.ShareTagResponse], error)
 	UpdateShare(context.Context, *connect.Request[v1.UpdateShareRequest]) (*connect.Response[v1.UpdateShareResponse], error)
@@ -201,6 +221,30 @@ func NewTaskmasterServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(taskmasterServiceMethods.ByName("UpdateMe")),
 			connect.WithClientOptions(opts...),
 		),
+		getPushConfig: connect.NewClient[v1.GetPushConfigRequest, v1.GetPushConfigResponse](
+			httpClient,
+			baseURL+TaskmasterServiceGetPushConfigProcedure,
+			connect.WithSchema(taskmasterServiceMethods.ByName("GetPushConfig")),
+			connect.WithClientOptions(opts...),
+		),
+		registerPush: connect.NewClient[v1.RegisterPushRequest, v1.RegisterPushResponse](
+			httpClient,
+			baseURL+TaskmasterServiceRegisterPushProcedure,
+			connect.WithSchema(taskmasterServiceMethods.ByName("RegisterPush")),
+			connect.WithClientOptions(opts...),
+		),
+		unregisterPush: connect.NewClient[v1.UnregisterPushRequest, v1.UnregisterPushResponse](
+			httpClient,
+			baseURL+TaskmasterServiceUnregisterPushProcedure,
+			connect.WithSchema(taskmasterServiceMethods.ByName("UnregisterPush")),
+			connect.WithClientOptions(opts...),
+		),
+		sendTestNotification: connect.NewClient[v1.SendTestNotificationRequest, v1.SendTestNotificationResponse](
+			httpClient,
+			baseURL+TaskmasterServiceSendTestNotificationProcedure,
+			connect.WithSchema(taskmasterServiceMethods.ByName("SendTestNotification")),
+			connect.WithClientOptions(opts...),
+		),
 		listTags: connect.NewClient[v1.ListTagsRequest, v1.ListTagsResponse](
 			httpClient,
 			baseURL+TaskmasterServiceListTagsProcedure,
@@ -235,6 +279,12 @@ func NewTaskmasterServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			httpClient,
 			baseURL+TaskmasterServiceSetTagColorProcedure,
 			connect.WithSchema(taskmasterServiceMethods.ByName("SetTagColor")),
+			connect.WithClientOptions(opts...),
+		),
+		setTagNotify: connect.NewClient[v1.SetTagNotifyRequest, v1.SetTagNotifyResponse](
+			httpClient,
+			baseURL+TaskmasterServiceSetTagNotifyProcedure,
+			connect.WithSchema(taskmasterServiceMethods.ByName("SetTagNotify")),
 			connect.WithClientOptions(opts...),
 		),
 		listShares: connect.NewClient[v1.ListSharesRequest, v1.ListSharesResponse](
@@ -410,42 +460,47 @@ func NewTaskmasterServiceClient(httpClient connect.HTTPClient, baseURL string, o
 
 // taskmasterServiceClient implements TaskmasterServiceClient.
 type taskmasterServiceClient struct {
-	getMe         *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
-	updateMe      *connect.Client[v1.UpdateMeRequest, v1.UpdateMeResponse]
-	listTags      *connect.Client[v1.ListTagsRequest, v1.ListTagsResponse]
-	createTag     *connect.Client[v1.CreateTagRequest, v1.CreateTagResponse]
-	updateTag     *connect.Client[v1.UpdateTagRequest, v1.UpdateTagResponse]
-	deleteTag     *connect.Client[v1.DeleteTagRequest, v1.DeleteTagResponse]
-	setTagHidden  *connect.Client[v1.SetTagHiddenRequest, v1.SetTagHiddenResponse]
-	setTagColor   *connect.Client[v1.SetTagColorRequest, v1.SetTagColorResponse]
-	listShares    *connect.Client[v1.ListSharesRequest, v1.ListSharesResponse]
-	shareTag      *connect.Client[v1.ShareTagRequest, v1.ShareTagResponse]
-	updateShare   *connect.Client[v1.UpdateShareRequest, v1.UpdateShareResponse]
-	revokeShare   *connect.Client[v1.RevokeShareRequest, v1.RevokeShareResponse]
-	listTasks     *connect.Client[v1.ListTasksRequest, v1.ListTasksResponse]
-	getTask       *connect.Client[v1.GetTaskRequest, v1.GetTaskResponse]
-	createTask    *connect.Client[v1.CreateTaskRequest, v1.CreateTaskResponse]
-	updateTask    *connect.Client[v1.UpdateTaskRequest, v1.UpdateTaskResponse]
-	archiveTask   *connect.Client[v1.ArchiveTaskRequest, v1.ArchiveTaskResponse]
-	unarchiveTask *connect.Client[v1.UnarchiveTaskRequest, v1.UnarchiveTaskResponse]
-	deleteTask    *connect.Client[v1.DeleteTaskRequest, v1.DeleteTaskResponse]
-	addTaskTag    *connect.Client[v1.AddTaskTagRequest, v1.AddTaskTagResponse]
-	removeTaskTag *connect.Client[v1.RemoveTaskTagRequest, v1.RemoveTaskTagResponse]
-	complete      *connect.Client[v1.CompleteRequest, v1.ActionResponse]
-	skip          *connect.Client[v1.SkipRequest, v1.ActionResponse]
-	checkItem     *connect.Client[v1.CheckItemRequest, v1.ActionResponse]
-	uncheckItem   *connect.Client[v1.UncheckItemRequest, v1.ActionResponse]
-	_defer        *connect.Client[v1.DeferRequest, v1.ActionResponse]
-	clearDeferral *connect.Client[v1.ClearDeferralRequest, v1.ActionResponse]
-	setCycleSlot  *connect.Client[v1.SetCycleSlotRequest, v1.ActionResponse]
-	pause         *connect.Client[v1.PauseRequest, v1.ActionResponse]
-	resume        *connect.Client[v1.ResumeRequest, v1.ActionResponse]
-	undo          *connect.Client[v1.UndoRequest, v1.ActionResponse]
-	listEvents    *connect.Client[v1.ListEventsRequest, v1.ListEventsResponse]
-	addNote       *connect.Client[v1.AddNoteRequest, v1.AddNoteResponse]
-	editEvent     *connect.Client[v1.EditEventRequest, v1.EditEventResponse]
-	deleteEvent   *connect.Client[v1.DeleteEventRequest, v1.DeleteEventResponse]
-	upcoming      *connect.Client[v1.UpcomingRequest, v1.UpcomingResponse]
+	getMe                *connect.Client[v1.GetMeRequest, v1.GetMeResponse]
+	updateMe             *connect.Client[v1.UpdateMeRequest, v1.UpdateMeResponse]
+	getPushConfig        *connect.Client[v1.GetPushConfigRequest, v1.GetPushConfigResponse]
+	registerPush         *connect.Client[v1.RegisterPushRequest, v1.RegisterPushResponse]
+	unregisterPush       *connect.Client[v1.UnregisterPushRequest, v1.UnregisterPushResponse]
+	sendTestNotification *connect.Client[v1.SendTestNotificationRequest, v1.SendTestNotificationResponse]
+	listTags             *connect.Client[v1.ListTagsRequest, v1.ListTagsResponse]
+	createTag            *connect.Client[v1.CreateTagRequest, v1.CreateTagResponse]
+	updateTag            *connect.Client[v1.UpdateTagRequest, v1.UpdateTagResponse]
+	deleteTag            *connect.Client[v1.DeleteTagRequest, v1.DeleteTagResponse]
+	setTagHidden         *connect.Client[v1.SetTagHiddenRequest, v1.SetTagHiddenResponse]
+	setTagColor          *connect.Client[v1.SetTagColorRequest, v1.SetTagColorResponse]
+	setTagNotify         *connect.Client[v1.SetTagNotifyRequest, v1.SetTagNotifyResponse]
+	listShares           *connect.Client[v1.ListSharesRequest, v1.ListSharesResponse]
+	shareTag             *connect.Client[v1.ShareTagRequest, v1.ShareTagResponse]
+	updateShare          *connect.Client[v1.UpdateShareRequest, v1.UpdateShareResponse]
+	revokeShare          *connect.Client[v1.RevokeShareRequest, v1.RevokeShareResponse]
+	listTasks            *connect.Client[v1.ListTasksRequest, v1.ListTasksResponse]
+	getTask              *connect.Client[v1.GetTaskRequest, v1.GetTaskResponse]
+	createTask           *connect.Client[v1.CreateTaskRequest, v1.CreateTaskResponse]
+	updateTask           *connect.Client[v1.UpdateTaskRequest, v1.UpdateTaskResponse]
+	archiveTask          *connect.Client[v1.ArchiveTaskRequest, v1.ArchiveTaskResponse]
+	unarchiveTask        *connect.Client[v1.UnarchiveTaskRequest, v1.UnarchiveTaskResponse]
+	deleteTask           *connect.Client[v1.DeleteTaskRequest, v1.DeleteTaskResponse]
+	addTaskTag           *connect.Client[v1.AddTaskTagRequest, v1.AddTaskTagResponse]
+	removeTaskTag        *connect.Client[v1.RemoveTaskTagRequest, v1.RemoveTaskTagResponse]
+	complete             *connect.Client[v1.CompleteRequest, v1.ActionResponse]
+	skip                 *connect.Client[v1.SkipRequest, v1.ActionResponse]
+	checkItem            *connect.Client[v1.CheckItemRequest, v1.ActionResponse]
+	uncheckItem          *connect.Client[v1.UncheckItemRequest, v1.ActionResponse]
+	_defer               *connect.Client[v1.DeferRequest, v1.ActionResponse]
+	clearDeferral        *connect.Client[v1.ClearDeferralRequest, v1.ActionResponse]
+	setCycleSlot         *connect.Client[v1.SetCycleSlotRequest, v1.ActionResponse]
+	pause                *connect.Client[v1.PauseRequest, v1.ActionResponse]
+	resume               *connect.Client[v1.ResumeRequest, v1.ActionResponse]
+	undo                 *connect.Client[v1.UndoRequest, v1.ActionResponse]
+	listEvents           *connect.Client[v1.ListEventsRequest, v1.ListEventsResponse]
+	addNote              *connect.Client[v1.AddNoteRequest, v1.AddNoteResponse]
+	editEvent            *connect.Client[v1.EditEventRequest, v1.EditEventResponse]
+	deleteEvent          *connect.Client[v1.DeleteEventRequest, v1.DeleteEventResponse]
+	upcoming             *connect.Client[v1.UpcomingRequest, v1.UpcomingResponse]
 }
 
 // GetMe calls taskmaster.v1.TaskmasterService.GetMe.
@@ -456,6 +511,26 @@ func (c *taskmasterServiceClient) GetMe(ctx context.Context, req *connect.Reques
 // UpdateMe calls taskmaster.v1.TaskmasterService.UpdateMe.
 func (c *taskmasterServiceClient) UpdateMe(ctx context.Context, req *connect.Request[v1.UpdateMeRequest]) (*connect.Response[v1.UpdateMeResponse], error) {
 	return c.updateMe.CallUnary(ctx, req)
+}
+
+// GetPushConfig calls taskmaster.v1.TaskmasterService.GetPushConfig.
+func (c *taskmasterServiceClient) GetPushConfig(ctx context.Context, req *connect.Request[v1.GetPushConfigRequest]) (*connect.Response[v1.GetPushConfigResponse], error) {
+	return c.getPushConfig.CallUnary(ctx, req)
+}
+
+// RegisterPush calls taskmaster.v1.TaskmasterService.RegisterPush.
+func (c *taskmasterServiceClient) RegisterPush(ctx context.Context, req *connect.Request[v1.RegisterPushRequest]) (*connect.Response[v1.RegisterPushResponse], error) {
+	return c.registerPush.CallUnary(ctx, req)
+}
+
+// UnregisterPush calls taskmaster.v1.TaskmasterService.UnregisterPush.
+func (c *taskmasterServiceClient) UnregisterPush(ctx context.Context, req *connect.Request[v1.UnregisterPushRequest]) (*connect.Response[v1.UnregisterPushResponse], error) {
+	return c.unregisterPush.CallUnary(ctx, req)
+}
+
+// SendTestNotification calls taskmaster.v1.TaskmasterService.SendTestNotification.
+func (c *taskmasterServiceClient) SendTestNotification(ctx context.Context, req *connect.Request[v1.SendTestNotificationRequest]) (*connect.Response[v1.SendTestNotificationResponse], error) {
+	return c.sendTestNotification.CallUnary(ctx, req)
 }
 
 // ListTags calls taskmaster.v1.TaskmasterService.ListTags.
@@ -486,6 +561,11 @@ func (c *taskmasterServiceClient) SetTagHidden(ctx context.Context, req *connect
 // SetTagColor calls taskmaster.v1.TaskmasterService.SetTagColor.
 func (c *taskmasterServiceClient) SetTagColor(ctx context.Context, req *connect.Request[v1.SetTagColorRequest]) (*connect.Response[v1.SetTagColorResponse], error) {
 	return c.setTagColor.CallUnary(ctx, req)
+}
+
+// SetTagNotify calls taskmaster.v1.TaskmasterService.SetTagNotify.
+func (c *taskmasterServiceClient) SetTagNotify(ctx context.Context, req *connect.Request[v1.SetTagNotifyRequest]) (*connect.Response[v1.SetTagNotifyResponse], error) {
+	return c.setTagNotify.CallUnary(ctx, req)
 }
 
 // ListShares calls taskmaster.v1.TaskmasterService.ListShares.
@@ -632,12 +712,17 @@ func (c *taskmasterServiceClient) Upcoming(ctx context.Context, req *connect.Req
 type TaskmasterServiceHandler interface {
 	GetMe(context.Context, *connect.Request[v1.GetMeRequest]) (*connect.Response[v1.GetMeResponse], error)
 	UpdateMe(context.Context, *connect.Request[v1.UpdateMeRequest]) (*connect.Response[v1.UpdateMeResponse], error)
+	GetPushConfig(context.Context, *connect.Request[v1.GetPushConfigRequest]) (*connect.Response[v1.GetPushConfigResponse], error)
+	RegisterPush(context.Context, *connect.Request[v1.RegisterPushRequest]) (*connect.Response[v1.RegisterPushResponse], error)
+	UnregisterPush(context.Context, *connect.Request[v1.UnregisterPushRequest]) (*connect.Response[v1.UnregisterPushResponse], error)
+	SendTestNotification(context.Context, *connect.Request[v1.SendTestNotificationRequest]) (*connect.Response[v1.SendTestNotificationResponse], error)
 	ListTags(context.Context, *connect.Request[v1.ListTagsRequest]) (*connect.Response[v1.ListTagsResponse], error)
 	CreateTag(context.Context, *connect.Request[v1.CreateTagRequest]) (*connect.Response[v1.CreateTagResponse], error)
 	UpdateTag(context.Context, *connect.Request[v1.UpdateTagRequest]) (*connect.Response[v1.UpdateTagResponse], error)
 	DeleteTag(context.Context, *connect.Request[v1.DeleteTagRequest]) (*connect.Response[v1.DeleteTagResponse], error)
 	SetTagHidden(context.Context, *connect.Request[v1.SetTagHiddenRequest]) (*connect.Response[v1.SetTagHiddenResponse], error)
 	SetTagColor(context.Context, *connect.Request[v1.SetTagColorRequest]) (*connect.Response[v1.SetTagColorResponse], error)
+	SetTagNotify(context.Context, *connect.Request[v1.SetTagNotifyRequest]) (*connect.Response[v1.SetTagNotifyResponse], error)
 	ListShares(context.Context, *connect.Request[v1.ListSharesRequest]) (*connect.Response[v1.ListSharesResponse], error)
 	ShareTag(context.Context, *connect.Request[v1.ShareTagRequest]) (*connect.Response[v1.ShareTagResponse], error)
 	UpdateShare(context.Context, *connect.Request[v1.UpdateShareRequest]) (*connect.Response[v1.UpdateShareResponse], error)
@@ -687,6 +772,30 @@ func NewTaskmasterServiceHandler(svc TaskmasterServiceHandler, opts ...connect.H
 		connect.WithSchema(taskmasterServiceMethods.ByName("UpdateMe")),
 		connect.WithHandlerOptions(opts...),
 	)
+	taskmasterServiceGetPushConfigHandler := connect.NewUnaryHandler(
+		TaskmasterServiceGetPushConfigProcedure,
+		svc.GetPushConfig,
+		connect.WithSchema(taskmasterServiceMethods.ByName("GetPushConfig")),
+		connect.WithHandlerOptions(opts...),
+	)
+	taskmasterServiceRegisterPushHandler := connect.NewUnaryHandler(
+		TaskmasterServiceRegisterPushProcedure,
+		svc.RegisterPush,
+		connect.WithSchema(taskmasterServiceMethods.ByName("RegisterPush")),
+		connect.WithHandlerOptions(opts...),
+	)
+	taskmasterServiceUnregisterPushHandler := connect.NewUnaryHandler(
+		TaskmasterServiceUnregisterPushProcedure,
+		svc.UnregisterPush,
+		connect.WithSchema(taskmasterServiceMethods.ByName("UnregisterPush")),
+		connect.WithHandlerOptions(opts...),
+	)
+	taskmasterServiceSendTestNotificationHandler := connect.NewUnaryHandler(
+		TaskmasterServiceSendTestNotificationProcedure,
+		svc.SendTestNotification,
+		connect.WithSchema(taskmasterServiceMethods.ByName("SendTestNotification")),
+		connect.WithHandlerOptions(opts...),
+	)
 	taskmasterServiceListTagsHandler := connect.NewUnaryHandler(
 		TaskmasterServiceListTagsProcedure,
 		svc.ListTags,
@@ -721,6 +830,12 @@ func NewTaskmasterServiceHandler(svc TaskmasterServiceHandler, opts ...connect.H
 		TaskmasterServiceSetTagColorProcedure,
 		svc.SetTagColor,
 		connect.WithSchema(taskmasterServiceMethods.ByName("SetTagColor")),
+		connect.WithHandlerOptions(opts...),
+	)
+	taskmasterServiceSetTagNotifyHandler := connect.NewUnaryHandler(
+		TaskmasterServiceSetTagNotifyProcedure,
+		svc.SetTagNotify,
+		connect.WithSchema(taskmasterServiceMethods.ByName("SetTagNotify")),
 		connect.WithHandlerOptions(opts...),
 	)
 	taskmasterServiceListSharesHandler := connect.NewUnaryHandler(
@@ -897,6 +1012,14 @@ func NewTaskmasterServiceHandler(svc TaskmasterServiceHandler, opts ...connect.H
 			taskmasterServiceGetMeHandler.ServeHTTP(w, r)
 		case TaskmasterServiceUpdateMeProcedure:
 			taskmasterServiceUpdateMeHandler.ServeHTTP(w, r)
+		case TaskmasterServiceGetPushConfigProcedure:
+			taskmasterServiceGetPushConfigHandler.ServeHTTP(w, r)
+		case TaskmasterServiceRegisterPushProcedure:
+			taskmasterServiceRegisterPushHandler.ServeHTTP(w, r)
+		case TaskmasterServiceUnregisterPushProcedure:
+			taskmasterServiceUnregisterPushHandler.ServeHTTP(w, r)
+		case TaskmasterServiceSendTestNotificationProcedure:
+			taskmasterServiceSendTestNotificationHandler.ServeHTTP(w, r)
 		case TaskmasterServiceListTagsProcedure:
 			taskmasterServiceListTagsHandler.ServeHTTP(w, r)
 		case TaskmasterServiceCreateTagProcedure:
@@ -909,6 +1032,8 @@ func NewTaskmasterServiceHandler(svc TaskmasterServiceHandler, opts ...connect.H
 			taskmasterServiceSetTagHiddenHandler.ServeHTTP(w, r)
 		case TaskmasterServiceSetTagColorProcedure:
 			taskmasterServiceSetTagColorHandler.ServeHTTP(w, r)
+		case TaskmasterServiceSetTagNotifyProcedure:
+			taskmasterServiceSetTagNotifyHandler.ServeHTTP(w, r)
 		case TaskmasterServiceListSharesProcedure:
 			taskmasterServiceListSharesHandler.ServeHTTP(w, r)
 		case TaskmasterServiceShareTagProcedure:
@@ -982,6 +1107,22 @@ func (UnimplementedTaskmasterServiceHandler) UpdateMe(context.Context, *connect.
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("taskmaster.v1.TaskmasterService.UpdateMe is not implemented"))
 }
 
+func (UnimplementedTaskmasterServiceHandler) GetPushConfig(context.Context, *connect.Request[v1.GetPushConfigRequest]) (*connect.Response[v1.GetPushConfigResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("taskmaster.v1.TaskmasterService.GetPushConfig is not implemented"))
+}
+
+func (UnimplementedTaskmasterServiceHandler) RegisterPush(context.Context, *connect.Request[v1.RegisterPushRequest]) (*connect.Response[v1.RegisterPushResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("taskmaster.v1.TaskmasterService.RegisterPush is not implemented"))
+}
+
+func (UnimplementedTaskmasterServiceHandler) UnregisterPush(context.Context, *connect.Request[v1.UnregisterPushRequest]) (*connect.Response[v1.UnregisterPushResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("taskmaster.v1.TaskmasterService.UnregisterPush is not implemented"))
+}
+
+func (UnimplementedTaskmasterServiceHandler) SendTestNotification(context.Context, *connect.Request[v1.SendTestNotificationRequest]) (*connect.Response[v1.SendTestNotificationResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("taskmaster.v1.TaskmasterService.SendTestNotification is not implemented"))
+}
+
 func (UnimplementedTaskmasterServiceHandler) ListTags(context.Context, *connect.Request[v1.ListTagsRequest]) (*connect.Response[v1.ListTagsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("taskmaster.v1.TaskmasterService.ListTags is not implemented"))
 }
@@ -1004,6 +1145,10 @@ func (UnimplementedTaskmasterServiceHandler) SetTagHidden(context.Context, *conn
 
 func (UnimplementedTaskmasterServiceHandler) SetTagColor(context.Context, *connect.Request[v1.SetTagColorRequest]) (*connect.Response[v1.SetTagColorResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("taskmaster.v1.TaskmasterService.SetTagColor is not implemented"))
+}
+
+func (UnimplementedTaskmasterServiceHandler) SetTagNotify(context.Context, *connect.Request[v1.SetTagNotifyRequest]) (*connect.Response[v1.SetTagNotifyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("taskmaster.v1.TaskmasterService.SetTagNotify is not implemented"))
 }
 
 func (UnimplementedTaskmasterServiceHandler) ListShares(context.Context, *connect.Request[v1.ListSharesRequest]) (*connect.Response[v1.ListSharesResponse], error) {

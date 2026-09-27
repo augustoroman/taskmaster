@@ -45,6 +45,8 @@ type Service struct {
 
 	locMu sync.Mutex
 	locs  map[string]*time.Location
+
+	push PushSender // nil: notifications off
 }
 
 // New returns a service. adminEmails can always log in; now is the clock

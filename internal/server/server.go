@@ -124,14 +124,60 @@ func respond[T any](msg *T, err error) (*connect.Response[T], error) {
 
 // ---- Users ----
 
+func (h *Handler) me(ctx context.Context, u *store.User) (*pb.User, error) {
+	devices, err := h.svc.PushDeviceCount(ctx, u)
+	return mePB(u, devices), err
+}
+
 func (h *Handler) GetMe(ctx context.Context, _ *connect.Request[pb.GetMeRequest]) (*connect.Response[pb.GetMeResponse], error) {
 	u, err := h.svc.GetMe(ctx, user(ctx))
-	return respond(&pb.GetMeResponse{User: userPB(u)}, err)
+	if err != nil {
+		return nil, toConnect(err)
+	}
+	me, err := h.me(ctx, u)
+	return respond(&pb.GetMeResponse{User: me}, err)
 }
 
 func (h *Handler) UpdateMe(ctx context.Context, req *connect.Request[pb.UpdateMeRequest]) (*connect.Response[pb.UpdateMeResponse], error) {
-	u, err := h.svc.UpdateMe(ctx, user(ctx), req.Msg.Name, req.Msg.TimeZone)
-	return respond(&pb.UpdateMeResponse{User: userPB(u)}, err)
+	m := req.Msg
+	u, err := h.svc.UpdateMe(ctx, user(ctx), m.Name, m.TimeZone)
+	if err == nil && (m.Notify != nil || m.NotifyTime != "") {
+		notify := u.Notify
+		if m.Notify != nil {
+			notify = *m.Notify
+		}
+		u, err = h.svc.SetNotifySettings(ctx, u, notify, m.NotifyTime)
+	}
+	if err != nil {
+		return nil, toConnect(err)
+	}
+	me, err := h.me(ctx, u)
+	return respond(&pb.UpdateMeResponse{User: me}, err)
+}
+
+func (h *Handler) GetPushConfig(ctx context.Context, _ *connect.Request[pb.GetPushConfigRequest]) (*connect.Response[pb.GetPushConfigResponse], error) {
+	key, err := h.svc.PushPublicKey()
+	if errors.Is(err, app.ErrPushDisabled) {
+		err = nil
+	}
+	return respond(&pb.GetPushConfigResponse{PublicKey: key}, err)
+}
+
+func (h *Handler) RegisterPush(ctx context.Context, req *connect.Request[pb.RegisterPushRequest]) (*connect.Response[pb.RegisterPushResponse], error) {
+	m := req.Msg
+	return respond(&pb.RegisterPushResponse{}, h.svc.RegisterPush(ctx, user(ctx), m.Endpoint, m.P256Dh, m.Auth, req.Header().Get("User-Agent")))
+}
+
+func (h *Handler) UnregisterPush(ctx context.Context, req *connect.Request[pb.UnregisterPushRequest]) (*connect.Response[pb.UnregisterPushResponse], error) {
+	return respond(&pb.UnregisterPushResponse{}, h.svc.UnregisterPush(ctx, user(ctx), req.Msg.Endpoint))
+}
+
+func (h *Handler) SendTestNotification(ctx context.Context, _ *connect.Request[pb.SendTestNotificationRequest]) (*connect.Response[pb.SendTestNotificationResponse], error) {
+	n, err := h.svc.SendTestNotification(ctx, user(ctx))
+	if errors.Is(err, app.ErrPushDisabled) {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, err)
+	}
+	return respond(&pb.SendTestNotificationResponse{Delivered: int32(n)}, err)
 }
 
 // ---- Tags ----
@@ -171,6 +217,10 @@ func (h *Handler) SetTagHidden(ctx context.Context, req *connect.Request[pb.SetT
 
 func (h *Handler) SetTagColor(ctx context.Context, req *connect.Request[pb.SetTagColorRequest]) (*connect.Response[pb.SetTagColorResponse], error) {
 	return respond(&pb.SetTagColorResponse{}, h.svc.SetTagColor(ctx, user(ctx), req.Msg.Id, req.Msg.Color))
+}
+
+func (h *Handler) SetTagNotify(ctx context.Context, req *connect.Request[pb.SetTagNotifyRequest]) (*connect.Response[pb.SetTagNotifyResponse], error) {
+	return respond(&pb.SetTagNotifyResponse{}, h.svc.SetTagNotify(ctx, user(ctx), req.Msg.Id, req.Msg.Notify))
 }
 
 // ---- Sharing ----

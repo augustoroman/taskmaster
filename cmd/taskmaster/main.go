@@ -13,6 +13,7 @@
 //	TASKS_BACKUP_DIR    if set, write database snapshots here
 //	TASKS_BACKUP_KEEP   how many snapshots to keep (default 14)
 //	TASKS_BACKUP_EVERY  how often to snapshot, as a Go duration (default 24h)
+//	TASKS_PUSH_SUBJECT  contact for push services (default mailto: the first admin email)
 package main
 
 import (
@@ -32,6 +33,7 @@ import (
 	"github.com/augustoroman/taskmaster/internal/app"
 	"github.com/augustoroman/taskmaster/internal/auth"
 	"github.com/augustoroman/taskmaster/internal/backup"
+	"github.com/augustoroman/taskmaster/internal/push"
 	"github.com/augustoroman/taskmaster/internal/server"
 	"github.com/augustoroman/taskmaster/internal/store"
 	"github.com/augustoroman/taskmaster/web"
@@ -55,6 +57,8 @@ type config struct {
 	devUser string
 	pages   server.Pages
 	backup  backup.Config
+	// pushSubject is who push services can contact about our messages.
+	pushSubject string
 }
 
 func loadConfig() (config, error) {
@@ -89,6 +93,10 @@ func loadConfig() (config, error) {
 			c.admins = append(c.admins, e)
 		}
 	}
+	c.pushSubject = os.Getenv("TASKS_PUSH_SUBJECT")
+	if c.pushSubject == "" && len(c.admins) > 0 {
+		c.pushSubject = "mailto:" + c.admins[0]
+	}
 	if c.devUser != "" {
 		host, _, err := net.SplitHostPort(c.addr)
 		if err != nil {
@@ -122,6 +130,15 @@ func run() error {
 	}
 	defer db.Close()
 	svc := app.New(db, cfg.admins, time.Now)
+	if cfg.pushSubject == "" {
+		slog.Warn("no TASKS_PUSH_SUBJECT or TASKS_ADMIN_EMAILS; push notifications are off")
+	} else {
+		sender, err := push.NewSender(context.Background(), db, cfg.pushSubject)
+		if err != nil {
+			return fmt.Errorf("setting up push: %w", err)
+		}
+		svc.SetPush(sender)
+	}
 
 	var authn auth.Authenticator = auth.JWT{Key: []byte(cfg.jwtKey), Realm: cfg.realm}
 	if cfg.devUser != "" {
@@ -142,6 +159,7 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go sweepLoop(ctx, svc)
+	go notifyLoop(ctx, svc)
 	if cfg.backup.Dir != "" {
 		go backup.Run(ctx, db, cfg.backup, time.Now)
 	} else {
@@ -163,6 +181,27 @@ func run() error {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	return srv.Shutdown(shutdownCtx)
+}
+
+// notifyLoop sends each user's daily notifications once their notification
+// time has passed.
+func notifyLoop(ctx context.Context, svc *app.Service) {
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+	for {
+		n, err := svc.SendDailyNotifications(ctx)
+		if err != nil && ctx.Err() == nil {
+			slog.Error("notifications", "err", err)
+		}
+		if n > 0 {
+			slog.Info("notifications sent", "count", n)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }
 
 // sweepLoop records misses and resumes paused tasks: at startup, then hourly

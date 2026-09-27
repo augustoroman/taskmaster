@@ -3,6 +3,8 @@ package store
 import (
 	"strings"
 	"time"
+
+	"github.com/augustoroman/taskmaster/internal/engine"
 )
 
 type User struct {
@@ -13,17 +15,22 @@ type User struct {
 	TZ          string // IANA; "" until set
 	CreatedAt   time.Time
 	LastLoginAt time.Time
+	// Notify turns daily notifications on; NotifyTime is when ("15:04", in
+	// TZ); NotifiedOn is the local date they were last sent.
+	Notify     bool
+	NotifyTime string
+	NotifiedOn engine.Date
 }
 
-const userCols = `id, email, name, picture, tz, created_at, last_login_at`
+const userCols = `id, email, name, picture, tz, created_at, last_login_at, notify, notify_time, notified_on`
 
 func scanUser(row interface{ Scan(...any) error }) (*User, error) {
 	var u User
-	var created, login string
-	if err := row.Scan(&u.ID, &u.Email, &u.Name, &u.Picture, &u.TZ, &created, &login); err != nil {
+	var created, login, notified string
+	if err := row.Scan(&u.ID, &u.Email, &u.Name, &u.Picture, &u.TZ, &created, &login, &u.Notify, &u.NotifyTime, &notified); err != nil {
 		return nil, notFound(err)
 	}
-	u.CreatedAt, u.LastLoginAt = parseTS(created), parseTS(login)
+	u.CreatedAt, u.LastLoginAt, u.NotifiedOn = parseTS(created), parseTS(login), mustDate(notified)
 	return &u, nil
 }
 
@@ -63,13 +70,30 @@ func (tx *Tx) InsertUser(u *User) error {
 		u.ID = NewID()
 	}
 	u.Email = NormalizeEmail(u.Email)
-	_, err := tx.exec(`INSERT INTO users (`+userCols+`) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		u.ID, u.Email, u.Name, u.Picture, u.TZ, ts(u.CreatedAt), ts(u.LastLoginAt))
+	if u.NotifyTime == "" {
+		u.Notify, u.NotifyTime = true, "08:00"
+	}
+	_, err := tx.exec(`INSERT INTO users (`+userCols+`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		u.ID, u.Email, u.Name, u.Picture, u.TZ, ts(u.CreatedAt), ts(u.LastLoginAt), u.Notify, u.NotifyTime, u.NotifiedOn.String())
 	return err
 }
 
 func (tx *Tx) UpdateUser(u *User) error {
-	_, err := tx.exec(`UPDATE users SET name = ?, picture = ?, tz = ?, last_login_at = ? WHERE id = ?`,
-		u.Name, u.Picture, u.TZ, ts(u.LastLoginAt), u.ID)
+	_, err := tx.exec(`UPDATE users SET name = ?, picture = ?, tz = ?, last_login_at = ?, notify = ?, notify_time = ?, notified_on = ? WHERE id = ?`,
+		u.Name, u.Picture, u.TZ, ts(u.LastLoginAt), u.Notify, u.NotifyTime, u.NotifiedOn.String(), u.ID)
 	return err
+}
+
+// AllUsers lists every user.
+func (tx *Tx) AllUsers() ([]*User, error) {
+	var out []*User
+	err := tx.each(`SELECT `+userCols+` FROM users ORDER BY id`, nil, func(scan func(...any) error) error {
+		u, err := scanUser(scanner(scan))
+		if err != nil {
+			return err
+		}
+		out = append(out, u)
+		return nil
+	})
+	return out, err
 }

@@ -12,12 +12,18 @@ service TaskmasterService {
   rpc GetMe(GetMeRequest) returns (GetMeResponse) {}
   rpc UpdateMe(UpdateMeRequest) returns (UpdateMeResponse) {}
 
+  rpc GetPushConfig(GetPushConfigRequest) returns (GetPushConfigResponse) {}
+  rpc RegisterPush(RegisterPushRequest) returns (RegisterPushResponse) {}
+  rpc UnregisterPush(UnregisterPushRequest) returns (UnregisterPushResponse) {}
+  rpc SendTestNotification(SendTestNotificationRequest) returns (SendTestNotificationResponse) {}
+
   rpc ListTags(ListTagsRequest) returns (ListTagsResponse) {}
   rpc CreateTag(CreateTagRequest) returns (CreateTagResponse) {}
   rpc UpdateTag(UpdateTagRequest) returns (UpdateTagResponse) {}
   rpc DeleteTag(DeleteTagRequest) returns (DeleteTagResponse) {}
   rpc SetTagHidden(SetTagHiddenRequest) returns (SetTagHiddenResponse) {}
   rpc SetTagColor(SetTagColorRequest) returns (SetTagColorResponse) {}
+  rpc SetTagNotify(SetTagNotifyRequest) returns (SetTagNotifyResponse) {}
 
   rpc ListShares(ListSharesRequest) returns (ListSharesResponse) {}
   rpc ShareTag(ShareTagRequest) returns (ShareTagResponse) {}
@@ -62,6 +68,11 @@ message User {
   string picture_url = 4;
   // IANA time zone, e.g. "America/Los_Angeles". Empty until set.
   string time_zone = 5;
+  // Daily notifications: on or off, and when ("HH:MM" in time_zone).
+  bool notify = 6;
+  string notify_time = 7;
+  // How many devices get notifications (GetMe/UpdateMe only).
+  int32 push_devices = 8;
 }
 
 message GetMeRequest {}
@@ -69,9 +80,38 @@ message GetMeResponse {
   User user = 1;
 }
 
+// Empty or unset fields are left alone.
 message UpdateMeRequest {
   string name = 1;
   string time_zone = 2;
+  optional bool notify = 3;
+  string notify_time = 4;
+}
+
+message GetPushConfigRequest {}
+message GetPushConfigResponse {
+  // The VAPID public key to subscribe with (applicationServerKey); empty if
+  // the server can't send notifications.
+  string public_key = 1;
+}
+
+// Registers this device's push subscription (PushSubscription.toJSON()).
+message RegisterPushRequest {
+  string endpoint = 1;
+  string p256dh = 2;
+  string auth = 3;
+}
+message RegisterPushResponse {}
+
+message UnregisterPushRequest {
+  string endpoint = 1;
+}
+message UnregisterPushResponse {}
+
+message SendTestNotificationRequest {}
+message SendTestNotificationResponse {
+  // How many devices it was delivered to.
+  int32 delivered = 1;
 }
 message UpdateMeResponse {
   User user = 1;
@@ -95,6 +135,9 @@ message Tag {
   AccessLevel my_access = 5;
   // Hidden by me as a personal filter; doesn't change access.
   bool hidden = 6;
+  // I get notifications for its tasks (default: on for my tags, off for
+  // shared ones).
+  bool notify = 7;
 }
 
 message ListTagsRequest {}
@@ -141,6 +184,12 @@ message SetTagColorRequest {
   string color = 2;
 }
 message SetTagColorResponse {}
+
+message SetTagNotifyRequest {
+  string id = 1;
+  bool notify = 2;
+}
+message SetTagNotifyResponse {}
 
 message Share {
   string id = 1;
