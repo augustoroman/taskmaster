@@ -1,0 +1,11 @@
+# Local database and backups
+*.db
+*.db-shm
+*.db-wal
+
+# Build output
+/taskmaster
+/web/dist/
+node_modules/
+
+.DS_Store
