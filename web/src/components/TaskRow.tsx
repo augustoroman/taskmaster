@@ -6,6 +6,7 @@ import { useSession } from "../session";
 import { tagStyle } from "../colors";
 import { activeChecklist, canDo, slotTitle, toast, undoAction, useRunner } from "./common";
 import { isNetworkError, queueAction, queuedFor, unqueue, useConnectivity } from "../offline";
+import { closeTaskNotification } from "../notifications";
 
 export function TagChips({ ids }: { ids: string[] }) {
   const { tagsById } = useSession();
@@ -76,6 +77,7 @@ export function TaskRow({
       },
     );
     if (res?.task) {
+      closeTaskNotification(task.id);
       const next = res.task.state?.due;
       toast(`Done: ${task.title}${next && !res.task.state?.done ? ` · next ${formatDate(next)}` : ""}`, undoAction(res.task, onChanged));
       onChanged(res.task);

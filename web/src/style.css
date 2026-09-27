@@ -176,6 +176,7 @@ input[type="email"],
 input[type="search"],
 input[type="number"],
 input[type="date"],
+input[type="time"],
 select,
 textarea {
   font: inherit;
@@ -206,6 +207,7 @@ label {
 
 label > select,
 label > input[type="date"],
+label > input[type="time"],
 label > input[type="number"] {
   align-self: flex-start;
 }
@@ -300,6 +302,16 @@ form.inline input[type="email"] {
   display: block;
   padding: 0.2rem 0.4rem;
   font-size: 0.85rem;
+}
+
+.notifications {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.notifications h3 {
+  margin-top: 1rem;
 }
 
 .offline-banner {
@@ -784,6 +796,7 @@ h2.group-1 {
 
 .card-head label > select,
 label > input[type="date"],
+label > input[type="time"],
 label > input[type="number"] {
   align-self: flex-start;
 }

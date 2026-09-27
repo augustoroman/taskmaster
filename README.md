@@ -62,6 +62,10 @@ authorization policy tasks_policy {
 | `TASKS_BACKUP_DIR` | If set, consistent database snapshots are written here (`tasks-<time>.db`). |
 | `TASKS_BACKUP_KEEP` | How many snapshots to keep (default 14). |
 | `TASKS_BACKUP_EVERY` | How often to take one, as a Go duration (default `24h`). |
+| `TASKS_PUSH_SUBJECT` | Contact that push services see for notifications, e.g. `mailto:you@example.com` (default: the first admin email). |
+
+Push notifications need no other setup: the server generates its key pair on first run and stores it
+in the database. The site must be served over HTTPS (localhost is fine for development).
 
 To restore, stop the server and copy a snapshot over the database file (removing any `-wal` and
 `-shm` files next to it).

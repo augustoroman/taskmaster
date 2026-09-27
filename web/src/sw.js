@@ -72,3 +72,100 @@ function fetchWithTimeout(req, ms) {
     );
   });
 }
+
+// ---- Push notifications ----
+// The server sends app.Notification payloads as JSON.
+
+self.addEventListener("push", (event) => {
+  let n = {};
+  try {
+    n = event.data ? event.data.json() : {};
+  } catch {
+    n = { title: "Taskmaster", body: event.data?.text() ?? "" };
+  }
+  const options = {
+    body: n.body || "",
+    tag: n.tag || undefined,
+    data: n,
+    icon: "/icons/icon-192.png",
+    badge: "/icons/badge-96.png",
+  };
+  if (n.type === "task" && n.actions) {
+    options.actions = [
+      { action: "done", title: "Done" },
+      { action: "tomorrow", title: "Tomorrow" },
+    ];
+  }
+  event.waitUntil(self.registration.showNotification(n.title || "Taskmaster", options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  const n = event.notification.data || {};
+  event.notification.close();
+  event.waitUntil(
+    (async () => {
+      if (event.action === "done") {
+        const occurrence = n.occurrence;
+        const date = localDate();
+        const ok = await call("Complete", { id: n.task_id, offline: { occurrence, date } });
+        if (ok === "offline") {
+          // Sent when the app next opens with a connection (see offline.ts).
+          await queue({ kind: "complete", taskId: n.task_id, taskTitle: n.title, occurrence, date, queuedAt: Date.now() });
+        }
+        if (ok) return;
+      } else if (event.action === "tomorrow") {
+        if ((await call("Defer", { id: n.task_id, to: n.tomorrow })) === true) return;
+      }
+      await openApp(n.url || "/");
+    })(),
+  );
+});
+
+/** Calls the API; returns true, "offline", or false (other failure). */
+async function call(method, body) {
+  try {
+    const res = await fetch(`/taskmaster.v1.TaskmasterService/${method}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body),
+    });
+    return res.ok;
+  } catch {
+    return "offline";
+  }
+}
+
+async function openApp(url) {
+  const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  for (const w of windows) {
+    if ("focus" in w) {
+      await w.focus();
+      if ("navigate" in w) await w.navigate(url).catch(() => {});
+      return;
+    }
+  }
+  await self.clients.openWindow(url);
+}
+
+function localDate() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Adds an action to the app's offline queue (IndexedDB "taskmaster"/"queue"). */
+function queue(item) {
+  return new Promise((resolve) => {
+    const open = indexedDB.open("taskmaster", 1);
+    open.onupgradeneeded = () => {
+      open.result.createObjectStore("cache");
+      open.result.createObjectStore("queue", { keyPath: "id", autoIncrement: true });
+    };
+    open.onsuccess = () => {
+      const tx = open.result.transaction("queue", "readwrite");
+      tx.objectStore("queue").add(item);
+      tx.oncomplete = tx.onerror = () => resolve();
+    };
+    open.onerror = () => resolve();
+  });
+}

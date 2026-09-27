@@ -20,12 +20,12 @@ TypeScript web frontend. Google login is handled by Caddy.
 - Priorities (3 levels), lead time, and a ranked "upcoming" view.
 - Tags as the unit of sharing (read / do / full), with invites by email.
 - Invite-only access on top of Caddy's Google login.
-- A web UI.
+- A web UI, installable as an app, with push notifications and offline use (§5.1, §5.2).
 
 **Deferred**
 - Start/end windows and time of day (v1 uses dates only).
-- Push and email notifications (v1 clients poll).
-- PWA, offline support and native apps.
+- Email notifications, and home-screen widgets (these need a native app).
+- Offline editing of tasks, tags and sharing (only done, check item and notes work offline).
 - Assignees and households.
 - Holiday-aware rules (you move a single occurrence by hand instead).
 
@@ -213,6 +213,30 @@ a date on every completion, because backdating is unusual.
 
 With these defaults, a yearly task 7 days out (`u = 0.5`) ranks the same as a weekly task 1 day out
 (`u = 0.5`). All the constants live in one file and are covered by tests, so they're easy to tune.
+
+## 5.1 Notifications
+
+Push notifications (Web Push, which Android and iOS show as system notifications for the
+installed app):
+
+- Sent once a day after each person's notification time (default 08:00, in their time zone),
+  checked every 5 minutes. People can turn them off or change the time in Settings, and enable them
+  per device.
+- One notification per task due today or overdue, most urgent first. Tasks that recur every 180
+  days or less often also get a one-time reminder 7 days before they're due.
+- At most 4 at once; when there are more, the 4th says "N more tasks" and opens Upcoming.
+- Only for tasks the person can do, whose tags they have "Notify me" on (default: on for their own
+  tags, off for tags shared with them; untagged tasks always notify their creator).
+- Single-task notifications have **Done** (completes it; queued offline if needed) and
+  **Tomorrow** (defers to tomorrow) buttons.
+
+## 5.2 Offline
+
+The app is installable (manifest + service worker). The service worker caches the app itself;
+API responses (me, tags, Upcoming, task lists, tasks, recent history) are saved in IndexedDB and
+shown when the server can't be reached. Done, check item and add note are queued offline and sent
+later with the day they were done and the occurrence they were for: the server applies them as of
+that day, or turns a since-recorded miss into done, or reports that the task moved on.
 
 ## 6. Access control
 

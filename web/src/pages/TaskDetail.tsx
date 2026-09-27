@@ -1,6 +1,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { api, GetTaskResponseSchema, isConflict, ScheduleKind, type ActionResponse, type Task } from "../api";
 import { cached, isNetworkError, queueAction, queuedFor, unqueue, useConnectivity, useOnSynced, type QueuedAction } from "../offline";
+import { closeTaskNotification } from "../notifications";
 import { addDays, formatDate, relativeDue, relativePast } from "../dates";
 import { href, navigate } from "../router";
 import { describeSchedule } from "../schedule";
@@ -45,6 +46,7 @@ export function TaskDetail({ id }: { id: string }) {
     });
     if (queued) return true;
     if (!res?.task) return false;
+    if (res.task.lastDone !== task?.lastDone || res.task.state?.due !== task?.state?.due) closeTaskNotification(res.task.id);
     setTask(res.task);
     setHistoryKey((k) => k + 1);
     if (message) {

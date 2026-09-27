@@ -2,6 +2,7 @@ import { createContext, type ComponentChildren } from "preact";
 import { useCallback, useContext, useEffect, useState } from "preact/hooks";
 import { AccessLevel, api, errorMessage, GetMeResponseSchema, ListTagsResponseSchema, type Tag, type User } from "./api";
 import { cached, isNetworkError } from "./offline";
+import { refreshRegistration } from "./notifications";
 import { browserTimeZone, today } from "./dates";
 
 export interface Session {
@@ -48,6 +49,7 @@ export function SessionProvider({ children }: { children: ComponentChildren }) {
           }
         }
         setMe(user);
+        refreshRegistration();
         await reloadTags();
       } catch (err) {
         setError(errorMessage(err));

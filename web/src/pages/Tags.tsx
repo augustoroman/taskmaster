@@ -100,6 +100,10 @@ function TagCard({ tag }: { tag: Tag }) {
             {!owner && <span class="muted small"> · {tag.owner?.name || tag.owner?.email} · {levelName(tag.myAccess)}</span>}
           </h3>
         )}
+        <label class="check small" title="Get notifications for this tag's tasks.">
+          <input type="checkbox" checked={tag.notify} onChange={(e) => then(api.setTagNotify({ id: tag.id, notify: e.currentTarget.checked }))} />
+          Notify me
+        </label>
         <label class="check small" title="Hide this tag's tasks from your lists. Doesn't change anyone's access.">
           <input type="checkbox" checked={tag.hidden} onChange={(e) => then(api.setTagHidden({ id: tag.id, hidden: e.currentTarget.checked }))} />
           Hide
