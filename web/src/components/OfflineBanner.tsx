@@ -27,7 +27,7 @@ export function OfflineBanner() {
       )}
       {failed.map((a) => (
         <p key={a.id} class="failed">
-          Couldn't sync "{a.kind === "complete" ? "Done" : a.kind === "check" ? "Checked item" : "Note"}" for <strong>{a.taskTitle}</strong>: {a.error}{" "}
+          Couldn't sync "{{ complete: "Done", check: "Checked item", note: "Note", skip: "Skip" }[a.kind]}" for <strong>{a.taskTitle}</strong>: {a.error}{" "}
           <button class="link" onClick={() => unqueue(a.id!)}>
             Dismiss
           </button>

@@ -1,4 +1,4 @@
-import { api, UrgencyGroup, type Task } from "../api";
+import { api, ScheduleKind, UrgencyGroup, type Task } from "../api";
 import { daysBetween, formatDate, relativeDue, relativePast } from "../dates";
 import { href } from "../router";
 import { describeSchedule } from "../schedule";
@@ -32,7 +32,7 @@ function dueClass(group: UrgencyGroup | undefined, days: number): string {
 export function DueLabel({ task, group }: { task: Task; group?: UrgencyGroup }) {
   const s = useSession();
   const st = task.state!;
-  if (st.done) return <span class="due muted">done</span>;
+  if (st.done) return <span class="due muted">{wontDo(task) ? "won't do" : "done"}</span>;
   if (st.paused) return <span class="due muted">paused{st.pauseUntil ? ` until ${formatDate(st.pauseUntil)}` : ""}</span>;
   if (!st.due) return <span class="due muted">no due date</span>;
   const ref = s.today();
@@ -43,6 +43,11 @@ export function DueLabel({ task, group }: { task: Task; group?: UrgencyGroup }) 
       {st.deferred && <span class="badge">deferred</span>}
     </span>
   );
+}
+
+/** A one-time task that was closed by skipping it rather than doing it. */
+export function wontDo(task: Task): boolean {
+  return !!task.state?.done && task.schedule?.kind === ScheduleKind.ONCE && !task.lastDone;
 }
 
 /** How many days a completion counts as "recent". */
@@ -81,7 +86,7 @@ export function TaskRow({
   const { busy, error, setError, run } = useRunner();
   const st = task.state!;
   const slot = st.currentSlotId ? slotTitle(task, st.currentSlotId) : "";
-  const pending = queuedFor(task.id, connectivity).some((a) => a.kind === "complete");
+  const pending = queuedFor(task.id, connectivity).find((a) => a.kind === "complete" || a.kind === "skip");
   const quickDone = canDo(task) && !st.done && !st.paused && !pending && !recent && activeChecklist(task).length === 0;
   const justDone = doneRecently(task, session.today());
 
@@ -116,7 +121,7 @@ export function TaskRow({
           <DueLabel task={task} group={group} />
           <span class="muted">{describeSchedule(task.schedule)}</span>
           {task.archived && <span class="badge">archived</span>}
-          {pending && <span class="badge">done · waiting to sync</span>}
+          {pending && <span class="badge">{pending.kind === "skip" ? "skipped" : "done"} · waiting to sync</span>}
           <TagChips ids={task.tagIds} />
           {task.lastDone && (justDone || showLastDone) && (
             <span class={justDone ? "done-chip" : "muted small"} title={`Last done ${formatDate(task.lastDone, session.today())}`}>

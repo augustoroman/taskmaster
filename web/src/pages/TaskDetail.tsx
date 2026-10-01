@@ -8,10 +8,10 @@ import { describeSchedule } from "../schedule";
 import { assignableTags, useSession } from "../session";
 import { activeChecklist, activeSlots, canDo, canEdit, ErrorBanner, Markdown, slotTitle, toast, undoAction, useRunner } from "../components/common";
 import { History } from "../components/History";
-import { TagChips } from "../components/TaskRow";
+import { TagChips, wontDo } from "../components/TaskRow";
 import { tagStyle } from "../colors";
 
-type Form = "" | "done" | "note" | "defer" | "pause" | "delete";
+type Form = "" | "done" | "note" | "defer" | "pause" | "delete" | "skip";
 
 export function TaskDetail({ id }: { id: string }) {
   const [task, setTask] = useState<Task | null>(null);
@@ -165,7 +165,7 @@ function Status({ task }: { task: Task }) {
     <section class="status">
       {st.done ? (
         <p>
-          <strong>Done.</strong> {task.schedule?.kind !== ScheduleKind.ONCE && "This schedule has ended."}
+          <strong>{wontDo(task) ? "Won't do." : "Done."}</strong> {task.schedule?.kind !== ScheduleKind.ONCE && "This schedule has ended."}
         </p>
       ) : st.paused ? (
         <p>
@@ -231,14 +231,14 @@ function Actions({ task, busy, act }: { task: Task; busy: boolean; act: ActFn })
   }
 
   const pending = queuedFor(task.id, connectivity);
-  const pendingDone = pending.find((a) => a.kind === "complete");
+  const pendingDone = pending.find((a) => a.kind === "complete" || a.kind === "skip");
   const pendingChecks = new Set(pending.filter((a) => a.kind === "check").map((a) => a.itemId));
 
   if (st.done) return null;
   if (pendingDone) {
     return (
       <p class="notice">
-        You marked this done while offline; it will sync when you're back online.{" "}
+        You marked this {pendingDone.kind === "skip" ? "skipped" : "done"} while offline; it will sync when you're back online.{" "}
         <button class="link" onClick={() => unqueue(pendingDone.id!)}>
           Undo
         </button>
@@ -313,11 +313,9 @@ function Actions({ task, busy, act }: { task: Task; busy: boolean; act: ActFn })
             Undo deferral
           </button>
         )}
-        {(kind === ScheduleKind.FIXED || kind === ScheduleKind.CYCLE) && (
-          <button disabled={busy} onClick={() => act(() => api.skip({ ...v, note }), "Skipped")}>
-            Skip this one
-          </button>
-        )}
+        <button disabled={busy} onClick={() => open("skip")}>
+          {kind === ScheduleKind.ONCE ? "Won't do…" : "Skip this time…"}
+        </button>
         <button disabled={busy} onClick={() => open("note")}>
           Add note…
         </button>
@@ -353,6 +351,34 @@ function Actions({ task, busy, act }: { task: Task; busy: boolean; act: ActFn })
           <div class="button-row">
             <button class="primary" type="submit" disabled={busy}>
               Mark done
+            </button>
+            <button type="button" class="link" onClick={() => setForm("")}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {form === "skip" && (
+        <form
+          class="inline-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit(() => api.skip({ ...v, note }), kind === ScheduleKind.ONCE ? `Won't do: ${task.title}` : `Skipped: ${task.title}`, {
+              kind: "skip",
+              note,
+            });
+          }}
+        >
+          <p class="muted small">
+            {kind === ScheduleKind.ONCE
+              ? "Closes the task without doing it. It stays in history as \"won't do\"."
+              : "Skips this time; the schedule doesn't change. To move it instead, use Defer."}
+          </p>
+          <textarea placeholder="Why? (optional)" value={note} onInput={(e) => setNote(e.currentTarget.value)} rows={2} />
+          <div class="button-row">
+            <button class="primary" type="submit" disabled={busy}>
+              {kind === ScheduleKind.ONCE ? "Won't do" : "Skip this time"}
             </button>
             <button type="button" class="link" onClick={() => setForm("")}>
               Cancel

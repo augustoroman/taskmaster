@@ -794,3 +794,30 @@ func TestOfflineReplayFixedLate(t *testing.T) {
 	assert.Equal(t, d("2026-10-03"), res.Events[0].Date)
 	assert.Equal(t, d("2026-11-01"), res.Task.State.Due)
 }
+
+func TestSkip(t *testing.T) {
+	f := newFixture(t)
+	// "Not this time" keeps the schedule: six months after Oct 1, even if
+	// skipped later, and offline.
+	vent := TaskInput{Title: "Dryer vent", Kind: engine.KindInterval, Interval: engine.Interval{N: 6, Unit: engine.Months}}
+	task, err := f.svc.CreateTask(f.ctx, f.admin, vent, nil, d("2026-10-01"))
+	require.NoError(t, err)
+	f.advance(10)
+	res, err := f.svc.Skip(f.ctx, f.admin, Action{TaskID: task.ID, Note: "out of town", Offline: &Offline{Occurrence: d("2026-10-01"), Date: d("2026-10-09")}})
+	require.NoError(t, err)
+	assert.Equal(t, d("2027-04-01"), res.Task.State.Due)
+	assert.Equal(t, engine.EventSkipped, res.Events[0].Kind)
+	assert.Equal(t, "out of town", res.Events[0].Note)
+	assert.True(t, res.Task.LastDone.IsZero(), "skipping isn't doing")
+
+	// A once task is closed as "won't do".
+	reg, err := f.svc.CreateTask(f.ctx, f.admin, TaskInput{Title: "Register for the race", Kind: engine.KindOnce}, nil, d("2026-10-15"))
+	require.NoError(t, err)
+	res, err = f.svc.Skip(f.ctx, f.admin, Action{TaskID: reg.ID, Note: "sold out"})
+	require.NoError(t, err)
+	assert.True(t, res.Task.State.Done)
+	list, _ := f.svc.ListTasks(f.ctx, f.admin, TaskFilter{})
+	for _, v := range list {
+		assert.NotEqual(t, reg.ID, v.ID, "closed tasks leave the active list")
+	}
+}

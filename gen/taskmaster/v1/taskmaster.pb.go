@@ -3991,11 +3991,15 @@ func (x *CompleteRequest) GetOffline() *Offline {
 	return nil
 }
 
+// "Not this time": records a skip and moves to the next occurrence without
+// changing the schedule (a once task is closed as "won't do").
 type SkipRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Version       int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
-	Note          string                 `protobuf:"bytes,3,opt,name=note,proto3" json:"note,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Id      string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	Note    string                 `protobuf:"bytes,3,opt,name=note,proto3" json:"note,omitempty"`
+	// For queued offline skips (see CompleteRequest.offline).
+	Offline       *Offline `protobuf:"bytes,4,opt,name=offline,proto3" json:"offline,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4049,6 +4053,13 @@ func (x *SkipRequest) GetNote() string {
 		return x.Note
 	}
 	return ""
+}
+
+func (x *SkipRequest) GetOffline() *Offline {
+	if x != nil {
+		return x.Offline
+	}
+	return nil
 }
 
 // Checking the last item completes the task.
@@ -5584,11 +5595,12 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\n" +
 	"as_slot_id\x18\x04 \x01(\tR\basSlotId\x12\x14\n" +
 	"\x05force\x18\x05 \x01(\bR\x05force\x120\n" +
-	"\aoffline\x18\x06 \x01(\v2\x16.taskmaster.v1.OfflineR\aoffline\"K\n" +
+	"\aoffline\x18\x06 \x01(\v2\x16.taskmaster.v1.OfflineR\aoffline\"}\n" +
 	"\vSkipRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x12\n" +
-	"\x04note\x18\x03 \x01(\tR\x04note\"\x9b\x01\n" +
+	"\x04note\x18\x03 \x01(\tR\x04note\x120\n" +
+	"\aoffline\x18\x04 \x01(\v2\x16.taskmaster.v1.OfflineR\aoffline\"\x9b\x01\n" +
 	"\x10CheckItemRequest\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x17\n" +
@@ -5879,151 +5891,152 @@ var file_taskmaster_v1_taskmaster_proto_goTypes = []any{
 	(*timestamppb.Timestamp)(nil),        // 92: google.protobuf.Timestamp
 }
 var file_taskmaster_v1_taskmaster_proto_depIdxs = []int32{
-	5,  // 0: taskmaster.v1.GetMeResponse.user:type_name -> taskmaster.v1.User
-	5,  // 1: taskmaster.v1.UpdateMeResponse.user:type_name -> taskmaster.v1.User
-	5,  // 2: taskmaster.v1.Tag.owner:type_name -> taskmaster.v1.User
-	0,  // 3: taskmaster.v1.Tag.my_access:type_name -> taskmaster.v1.AccessLevel
-	18, // 4: taskmaster.v1.ListTagsResponse.tags:type_name -> taskmaster.v1.Tag
-	18, // 5: taskmaster.v1.CreateTagResponse.tag:type_name -> taskmaster.v1.Tag
-	18, // 6: taskmaster.v1.UpdateTagResponse.tag:type_name -> taskmaster.v1.Tag
-	5,  // 7: taskmaster.v1.Share.user:type_name -> taskmaster.v1.User
-	0,  // 8: taskmaster.v1.Share.level:type_name -> taskmaster.v1.AccessLevel
-	92, // 9: taskmaster.v1.Share.created_at:type_name -> google.protobuf.Timestamp
-	33, // 10: taskmaster.v1.ListSharesResponse.shares:type_name -> taskmaster.v1.Share
-	0,  // 11: taskmaster.v1.ShareTagRequest.level:type_name -> taskmaster.v1.AccessLevel
-	33, // 12: taskmaster.v1.ShareTagResponse.share:type_name -> taskmaster.v1.Share
-	0,  // 13: taskmaster.v1.UpdateShareRequest.level:type_name -> taskmaster.v1.AccessLevel
-	33, // 14: taskmaster.v1.UpdateShareResponse.share:type_name -> taskmaster.v1.Share
-	1,  // 15: taskmaster.v1.Schedule.kind:type_name -> taskmaster.v1.ScheduleKind
-	2,  // 16: taskmaster.v1.Schedule.interval_unit:type_name -> taskmaster.v1.IntervalUnit
-	5,  // 17: taskmaster.v1.Check.user:type_name -> taskmaster.v1.User
-	45, // 18: taskmaster.v1.TaskState.checks:type_name -> taskmaster.v1.Check
-	42, // 19: taskmaster.v1.Task.schedule:type_name -> taskmaster.v1.Schedule
-	43, // 20: taskmaster.v1.Task.slots:type_name -> taskmaster.v1.Slot
-	44, // 21: taskmaster.v1.Task.checklist:type_name -> taskmaster.v1.ChecklistItem
-	5,  // 22: taskmaster.v1.Task.creator:type_name -> taskmaster.v1.User
-	92, // 23: taskmaster.v1.Task.created_at:type_name -> google.protobuf.Timestamp
-	92, // 24: taskmaster.v1.Task.updated_at:type_name -> google.protobuf.Timestamp
-	46, // 25: taskmaster.v1.Task.state:type_name -> taskmaster.v1.TaskState
-	0,  // 26: taskmaster.v1.Task.my_access:type_name -> taskmaster.v1.AccessLevel
-	47, // 27: taskmaster.v1.Task.projected:type_name -> taskmaster.v1.Projected
-	42, // 28: taskmaster.v1.TaskInput.schedule:type_name -> taskmaster.v1.Schedule
-	43, // 29: taskmaster.v1.TaskInput.slots:type_name -> taskmaster.v1.Slot
-	44, // 30: taskmaster.v1.TaskInput.checklist:type_name -> taskmaster.v1.ChecklistItem
-	92, // 31: taskmaster.v1.ListTasksRequest.updated_since:type_name -> google.protobuf.Timestamp
-	48, // 32: taskmaster.v1.ListTasksResponse.tasks:type_name -> taskmaster.v1.Task
-	48, // 33: taskmaster.v1.GetTaskResponse.task:type_name -> taskmaster.v1.Task
-	49, // 34: taskmaster.v1.CreateTaskRequest.task:type_name -> taskmaster.v1.TaskInput
-	48, // 35: taskmaster.v1.CreateTaskResponse.task:type_name -> taskmaster.v1.Task
-	49, // 36: taskmaster.v1.UpdateTaskRequest.task:type_name -> taskmaster.v1.TaskInput
-	48, // 37: taskmaster.v1.UpdateTaskResponse.task:type_name -> taskmaster.v1.Task
-	48, // 38: taskmaster.v1.ArchiveTaskResponse.task:type_name -> taskmaster.v1.Task
-	48, // 39: taskmaster.v1.UnarchiveTaskResponse.task:type_name -> taskmaster.v1.Task
-	48, // 40: taskmaster.v1.AddTaskTagResponse.task:type_name -> taskmaster.v1.Task
-	48, // 41: taskmaster.v1.RemoveTaskTagResponse.task:type_name -> taskmaster.v1.Task
-	48, // 42: taskmaster.v1.ActionResponse.task:type_name -> taskmaster.v1.Task
-	80, // 43: taskmaster.v1.ActionResponse.events:type_name -> taskmaster.v1.Event
-	69, // 44: taskmaster.v1.CompleteRequest.offline:type_name -> taskmaster.v1.Offline
-	69, // 45: taskmaster.v1.CheckItemRequest.offline:type_name -> taskmaster.v1.Offline
-	3,  // 46: taskmaster.v1.Event.kind:type_name -> taskmaster.v1.EventKind
-	5,  // 47: taskmaster.v1.Event.user:type_name -> taskmaster.v1.User
-	92, // 48: taskmaster.v1.Event.created_at:type_name -> google.protobuf.Timestamp
-	92, // 49: taskmaster.v1.Event.edited_at:type_name -> google.protobuf.Timestamp
-	80, // 50: taskmaster.v1.ListEventsResponse.events:type_name -> taskmaster.v1.Event
-	80, // 51: taskmaster.v1.AddNoteResponse.event:type_name -> taskmaster.v1.Event
-	80, // 52: taskmaster.v1.EditEventResponse.event:type_name -> taskmaster.v1.Event
-	48, // 53: taskmaster.v1.EditEventResponse.task:type_name -> taskmaster.v1.Task
-	48, // 54: taskmaster.v1.DeleteEventResponse.task:type_name -> taskmaster.v1.Task
-	48, // 55: taskmaster.v1.UpcomingItem.task:type_name -> taskmaster.v1.Task
-	4,  // 56: taskmaster.v1.UpcomingItem.group:type_name -> taskmaster.v1.UrgencyGroup
-	89, // 57: taskmaster.v1.UpcomingResponse.items:type_name -> taskmaster.v1.UpcomingItem
-	6,  // 58: taskmaster.v1.TaskmasterService.GetMe:input_type -> taskmaster.v1.GetMeRequest
-	8,  // 59: taskmaster.v1.TaskmasterService.UpdateMe:input_type -> taskmaster.v1.UpdateMeRequest
-	9,  // 60: taskmaster.v1.TaskmasterService.GetPushConfig:input_type -> taskmaster.v1.GetPushConfigRequest
-	11, // 61: taskmaster.v1.TaskmasterService.RegisterPush:input_type -> taskmaster.v1.RegisterPushRequest
-	13, // 62: taskmaster.v1.TaskmasterService.UnregisterPush:input_type -> taskmaster.v1.UnregisterPushRequest
-	15, // 63: taskmaster.v1.TaskmasterService.SendTestNotification:input_type -> taskmaster.v1.SendTestNotificationRequest
-	19, // 64: taskmaster.v1.TaskmasterService.ListTags:input_type -> taskmaster.v1.ListTagsRequest
-	21, // 65: taskmaster.v1.TaskmasterService.CreateTag:input_type -> taskmaster.v1.CreateTagRequest
-	23, // 66: taskmaster.v1.TaskmasterService.UpdateTag:input_type -> taskmaster.v1.UpdateTagRequest
-	25, // 67: taskmaster.v1.TaskmasterService.DeleteTag:input_type -> taskmaster.v1.DeleteTagRequest
-	27, // 68: taskmaster.v1.TaskmasterService.SetTagHidden:input_type -> taskmaster.v1.SetTagHiddenRequest
-	29, // 69: taskmaster.v1.TaskmasterService.SetTagColor:input_type -> taskmaster.v1.SetTagColorRequest
-	31, // 70: taskmaster.v1.TaskmasterService.SetTagNotify:input_type -> taskmaster.v1.SetTagNotifyRequest
-	34, // 71: taskmaster.v1.TaskmasterService.ListShares:input_type -> taskmaster.v1.ListSharesRequest
-	36, // 72: taskmaster.v1.TaskmasterService.ShareTag:input_type -> taskmaster.v1.ShareTagRequest
-	38, // 73: taskmaster.v1.TaskmasterService.UpdateShare:input_type -> taskmaster.v1.UpdateShareRequest
-	40, // 74: taskmaster.v1.TaskmasterService.RevokeShare:input_type -> taskmaster.v1.RevokeShareRequest
-	50, // 75: taskmaster.v1.TaskmasterService.ListTasks:input_type -> taskmaster.v1.ListTasksRequest
-	52, // 76: taskmaster.v1.TaskmasterService.GetTask:input_type -> taskmaster.v1.GetTaskRequest
-	54, // 77: taskmaster.v1.TaskmasterService.CreateTask:input_type -> taskmaster.v1.CreateTaskRequest
-	56, // 78: taskmaster.v1.TaskmasterService.UpdateTask:input_type -> taskmaster.v1.UpdateTaskRequest
-	58, // 79: taskmaster.v1.TaskmasterService.ArchiveTask:input_type -> taskmaster.v1.ArchiveTaskRequest
-	60, // 80: taskmaster.v1.TaskmasterService.UnarchiveTask:input_type -> taskmaster.v1.UnarchiveTaskRequest
-	62, // 81: taskmaster.v1.TaskmasterService.DeleteTask:input_type -> taskmaster.v1.DeleteTaskRequest
-	64, // 82: taskmaster.v1.TaskmasterService.AddTaskTag:input_type -> taskmaster.v1.AddTaskTagRequest
-	66, // 83: taskmaster.v1.TaskmasterService.RemoveTaskTag:input_type -> taskmaster.v1.RemoveTaskTagRequest
-	70, // 84: taskmaster.v1.TaskmasterService.Complete:input_type -> taskmaster.v1.CompleteRequest
-	71, // 85: taskmaster.v1.TaskmasterService.Skip:input_type -> taskmaster.v1.SkipRequest
-	72, // 86: taskmaster.v1.TaskmasterService.CheckItem:input_type -> taskmaster.v1.CheckItemRequest
-	73, // 87: taskmaster.v1.TaskmasterService.UncheckItem:input_type -> taskmaster.v1.UncheckItemRequest
-	74, // 88: taskmaster.v1.TaskmasterService.Defer:input_type -> taskmaster.v1.DeferRequest
-	75, // 89: taskmaster.v1.TaskmasterService.ClearDeferral:input_type -> taskmaster.v1.ClearDeferralRequest
-	76, // 90: taskmaster.v1.TaskmasterService.SetCycleSlot:input_type -> taskmaster.v1.SetCycleSlotRequest
-	77, // 91: taskmaster.v1.TaskmasterService.Pause:input_type -> taskmaster.v1.PauseRequest
-	78, // 92: taskmaster.v1.TaskmasterService.Resume:input_type -> taskmaster.v1.ResumeRequest
-	79, // 93: taskmaster.v1.TaskmasterService.Undo:input_type -> taskmaster.v1.UndoRequest
-	81, // 94: taskmaster.v1.TaskmasterService.ListEvents:input_type -> taskmaster.v1.ListEventsRequest
-	83, // 95: taskmaster.v1.TaskmasterService.AddNote:input_type -> taskmaster.v1.AddNoteRequest
-	85, // 96: taskmaster.v1.TaskmasterService.EditEvent:input_type -> taskmaster.v1.EditEventRequest
-	87, // 97: taskmaster.v1.TaskmasterService.DeleteEvent:input_type -> taskmaster.v1.DeleteEventRequest
-	90, // 98: taskmaster.v1.TaskmasterService.Upcoming:input_type -> taskmaster.v1.UpcomingRequest
-	7,  // 99: taskmaster.v1.TaskmasterService.GetMe:output_type -> taskmaster.v1.GetMeResponse
-	17, // 100: taskmaster.v1.TaskmasterService.UpdateMe:output_type -> taskmaster.v1.UpdateMeResponse
-	10, // 101: taskmaster.v1.TaskmasterService.GetPushConfig:output_type -> taskmaster.v1.GetPushConfigResponse
-	12, // 102: taskmaster.v1.TaskmasterService.RegisterPush:output_type -> taskmaster.v1.RegisterPushResponse
-	14, // 103: taskmaster.v1.TaskmasterService.UnregisterPush:output_type -> taskmaster.v1.UnregisterPushResponse
-	16, // 104: taskmaster.v1.TaskmasterService.SendTestNotification:output_type -> taskmaster.v1.SendTestNotificationResponse
-	20, // 105: taskmaster.v1.TaskmasterService.ListTags:output_type -> taskmaster.v1.ListTagsResponse
-	22, // 106: taskmaster.v1.TaskmasterService.CreateTag:output_type -> taskmaster.v1.CreateTagResponse
-	24, // 107: taskmaster.v1.TaskmasterService.UpdateTag:output_type -> taskmaster.v1.UpdateTagResponse
-	26, // 108: taskmaster.v1.TaskmasterService.DeleteTag:output_type -> taskmaster.v1.DeleteTagResponse
-	28, // 109: taskmaster.v1.TaskmasterService.SetTagHidden:output_type -> taskmaster.v1.SetTagHiddenResponse
-	30, // 110: taskmaster.v1.TaskmasterService.SetTagColor:output_type -> taskmaster.v1.SetTagColorResponse
-	32, // 111: taskmaster.v1.TaskmasterService.SetTagNotify:output_type -> taskmaster.v1.SetTagNotifyResponse
-	35, // 112: taskmaster.v1.TaskmasterService.ListShares:output_type -> taskmaster.v1.ListSharesResponse
-	37, // 113: taskmaster.v1.TaskmasterService.ShareTag:output_type -> taskmaster.v1.ShareTagResponse
-	39, // 114: taskmaster.v1.TaskmasterService.UpdateShare:output_type -> taskmaster.v1.UpdateShareResponse
-	41, // 115: taskmaster.v1.TaskmasterService.RevokeShare:output_type -> taskmaster.v1.RevokeShareResponse
-	51, // 116: taskmaster.v1.TaskmasterService.ListTasks:output_type -> taskmaster.v1.ListTasksResponse
-	53, // 117: taskmaster.v1.TaskmasterService.GetTask:output_type -> taskmaster.v1.GetTaskResponse
-	55, // 118: taskmaster.v1.TaskmasterService.CreateTask:output_type -> taskmaster.v1.CreateTaskResponse
-	57, // 119: taskmaster.v1.TaskmasterService.UpdateTask:output_type -> taskmaster.v1.UpdateTaskResponse
-	59, // 120: taskmaster.v1.TaskmasterService.ArchiveTask:output_type -> taskmaster.v1.ArchiveTaskResponse
-	61, // 121: taskmaster.v1.TaskmasterService.UnarchiveTask:output_type -> taskmaster.v1.UnarchiveTaskResponse
-	63, // 122: taskmaster.v1.TaskmasterService.DeleteTask:output_type -> taskmaster.v1.DeleteTaskResponse
-	65, // 123: taskmaster.v1.TaskmasterService.AddTaskTag:output_type -> taskmaster.v1.AddTaskTagResponse
-	67, // 124: taskmaster.v1.TaskmasterService.RemoveTaskTag:output_type -> taskmaster.v1.RemoveTaskTagResponse
-	68, // 125: taskmaster.v1.TaskmasterService.Complete:output_type -> taskmaster.v1.ActionResponse
-	68, // 126: taskmaster.v1.TaskmasterService.Skip:output_type -> taskmaster.v1.ActionResponse
-	68, // 127: taskmaster.v1.TaskmasterService.CheckItem:output_type -> taskmaster.v1.ActionResponse
-	68, // 128: taskmaster.v1.TaskmasterService.UncheckItem:output_type -> taskmaster.v1.ActionResponse
-	68, // 129: taskmaster.v1.TaskmasterService.Defer:output_type -> taskmaster.v1.ActionResponse
-	68, // 130: taskmaster.v1.TaskmasterService.ClearDeferral:output_type -> taskmaster.v1.ActionResponse
-	68, // 131: taskmaster.v1.TaskmasterService.SetCycleSlot:output_type -> taskmaster.v1.ActionResponse
-	68, // 132: taskmaster.v1.TaskmasterService.Pause:output_type -> taskmaster.v1.ActionResponse
-	68, // 133: taskmaster.v1.TaskmasterService.Resume:output_type -> taskmaster.v1.ActionResponse
-	68, // 134: taskmaster.v1.TaskmasterService.Undo:output_type -> taskmaster.v1.ActionResponse
-	82, // 135: taskmaster.v1.TaskmasterService.ListEvents:output_type -> taskmaster.v1.ListEventsResponse
-	84, // 136: taskmaster.v1.TaskmasterService.AddNote:output_type -> taskmaster.v1.AddNoteResponse
-	86, // 137: taskmaster.v1.TaskmasterService.EditEvent:output_type -> taskmaster.v1.EditEventResponse
-	88, // 138: taskmaster.v1.TaskmasterService.DeleteEvent:output_type -> taskmaster.v1.DeleteEventResponse
-	91, // 139: taskmaster.v1.TaskmasterService.Upcoming:output_type -> taskmaster.v1.UpcomingResponse
-	99, // [99:140] is the sub-list for method output_type
-	58, // [58:99] is the sub-list for method input_type
-	58, // [58:58] is the sub-list for extension type_name
-	58, // [58:58] is the sub-list for extension extendee
-	0,  // [0:58] is the sub-list for field type_name
+	5,   // 0: taskmaster.v1.GetMeResponse.user:type_name -> taskmaster.v1.User
+	5,   // 1: taskmaster.v1.UpdateMeResponse.user:type_name -> taskmaster.v1.User
+	5,   // 2: taskmaster.v1.Tag.owner:type_name -> taskmaster.v1.User
+	0,   // 3: taskmaster.v1.Tag.my_access:type_name -> taskmaster.v1.AccessLevel
+	18,  // 4: taskmaster.v1.ListTagsResponse.tags:type_name -> taskmaster.v1.Tag
+	18,  // 5: taskmaster.v1.CreateTagResponse.tag:type_name -> taskmaster.v1.Tag
+	18,  // 6: taskmaster.v1.UpdateTagResponse.tag:type_name -> taskmaster.v1.Tag
+	5,   // 7: taskmaster.v1.Share.user:type_name -> taskmaster.v1.User
+	0,   // 8: taskmaster.v1.Share.level:type_name -> taskmaster.v1.AccessLevel
+	92,  // 9: taskmaster.v1.Share.created_at:type_name -> google.protobuf.Timestamp
+	33,  // 10: taskmaster.v1.ListSharesResponse.shares:type_name -> taskmaster.v1.Share
+	0,   // 11: taskmaster.v1.ShareTagRequest.level:type_name -> taskmaster.v1.AccessLevel
+	33,  // 12: taskmaster.v1.ShareTagResponse.share:type_name -> taskmaster.v1.Share
+	0,   // 13: taskmaster.v1.UpdateShareRequest.level:type_name -> taskmaster.v1.AccessLevel
+	33,  // 14: taskmaster.v1.UpdateShareResponse.share:type_name -> taskmaster.v1.Share
+	1,   // 15: taskmaster.v1.Schedule.kind:type_name -> taskmaster.v1.ScheduleKind
+	2,   // 16: taskmaster.v1.Schedule.interval_unit:type_name -> taskmaster.v1.IntervalUnit
+	5,   // 17: taskmaster.v1.Check.user:type_name -> taskmaster.v1.User
+	45,  // 18: taskmaster.v1.TaskState.checks:type_name -> taskmaster.v1.Check
+	42,  // 19: taskmaster.v1.Task.schedule:type_name -> taskmaster.v1.Schedule
+	43,  // 20: taskmaster.v1.Task.slots:type_name -> taskmaster.v1.Slot
+	44,  // 21: taskmaster.v1.Task.checklist:type_name -> taskmaster.v1.ChecklistItem
+	5,   // 22: taskmaster.v1.Task.creator:type_name -> taskmaster.v1.User
+	92,  // 23: taskmaster.v1.Task.created_at:type_name -> google.protobuf.Timestamp
+	92,  // 24: taskmaster.v1.Task.updated_at:type_name -> google.protobuf.Timestamp
+	46,  // 25: taskmaster.v1.Task.state:type_name -> taskmaster.v1.TaskState
+	0,   // 26: taskmaster.v1.Task.my_access:type_name -> taskmaster.v1.AccessLevel
+	47,  // 27: taskmaster.v1.Task.projected:type_name -> taskmaster.v1.Projected
+	42,  // 28: taskmaster.v1.TaskInput.schedule:type_name -> taskmaster.v1.Schedule
+	43,  // 29: taskmaster.v1.TaskInput.slots:type_name -> taskmaster.v1.Slot
+	44,  // 30: taskmaster.v1.TaskInput.checklist:type_name -> taskmaster.v1.ChecklistItem
+	92,  // 31: taskmaster.v1.ListTasksRequest.updated_since:type_name -> google.protobuf.Timestamp
+	48,  // 32: taskmaster.v1.ListTasksResponse.tasks:type_name -> taskmaster.v1.Task
+	48,  // 33: taskmaster.v1.GetTaskResponse.task:type_name -> taskmaster.v1.Task
+	49,  // 34: taskmaster.v1.CreateTaskRequest.task:type_name -> taskmaster.v1.TaskInput
+	48,  // 35: taskmaster.v1.CreateTaskResponse.task:type_name -> taskmaster.v1.Task
+	49,  // 36: taskmaster.v1.UpdateTaskRequest.task:type_name -> taskmaster.v1.TaskInput
+	48,  // 37: taskmaster.v1.UpdateTaskResponse.task:type_name -> taskmaster.v1.Task
+	48,  // 38: taskmaster.v1.ArchiveTaskResponse.task:type_name -> taskmaster.v1.Task
+	48,  // 39: taskmaster.v1.UnarchiveTaskResponse.task:type_name -> taskmaster.v1.Task
+	48,  // 40: taskmaster.v1.AddTaskTagResponse.task:type_name -> taskmaster.v1.Task
+	48,  // 41: taskmaster.v1.RemoveTaskTagResponse.task:type_name -> taskmaster.v1.Task
+	48,  // 42: taskmaster.v1.ActionResponse.task:type_name -> taskmaster.v1.Task
+	80,  // 43: taskmaster.v1.ActionResponse.events:type_name -> taskmaster.v1.Event
+	69,  // 44: taskmaster.v1.CompleteRequest.offline:type_name -> taskmaster.v1.Offline
+	69,  // 45: taskmaster.v1.SkipRequest.offline:type_name -> taskmaster.v1.Offline
+	69,  // 46: taskmaster.v1.CheckItemRequest.offline:type_name -> taskmaster.v1.Offline
+	3,   // 47: taskmaster.v1.Event.kind:type_name -> taskmaster.v1.EventKind
+	5,   // 48: taskmaster.v1.Event.user:type_name -> taskmaster.v1.User
+	92,  // 49: taskmaster.v1.Event.created_at:type_name -> google.protobuf.Timestamp
+	92,  // 50: taskmaster.v1.Event.edited_at:type_name -> google.protobuf.Timestamp
+	80,  // 51: taskmaster.v1.ListEventsResponse.events:type_name -> taskmaster.v1.Event
+	80,  // 52: taskmaster.v1.AddNoteResponse.event:type_name -> taskmaster.v1.Event
+	80,  // 53: taskmaster.v1.EditEventResponse.event:type_name -> taskmaster.v1.Event
+	48,  // 54: taskmaster.v1.EditEventResponse.task:type_name -> taskmaster.v1.Task
+	48,  // 55: taskmaster.v1.DeleteEventResponse.task:type_name -> taskmaster.v1.Task
+	48,  // 56: taskmaster.v1.UpcomingItem.task:type_name -> taskmaster.v1.Task
+	4,   // 57: taskmaster.v1.UpcomingItem.group:type_name -> taskmaster.v1.UrgencyGroup
+	89,  // 58: taskmaster.v1.UpcomingResponse.items:type_name -> taskmaster.v1.UpcomingItem
+	6,   // 59: taskmaster.v1.TaskmasterService.GetMe:input_type -> taskmaster.v1.GetMeRequest
+	8,   // 60: taskmaster.v1.TaskmasterService.UpdateMe:input_type -> taskmaster.v1.UpdateMeRequest
+	9,   // 61: taskmaster.v1.TaskmasterService.GetPushConfig:input_type -> taskmaster.v1.GetPushConfigRequest
+	11,  // 62: taskmaster.v1.TaskmasterService.RegisterPush:input_type -> taskmaster.v1.RegisterPushRequest
+	13,  // 63: taskmaster.v1.TaskmasterService.UnregisterPush:input_type -> taskmaster.v1.UnregisterPushRequest
+	15,  // 64: taskmaster.v1.TaskmasterService.SendTestNotification:input_type -> taskmaster.v1.SendTestNotificationRequest
+	19,  // 65: taskmaster.v1.TaskmasterService.ListTags:input_type -> taskmaster.v1.ListTagsRequest
+	21,  // 66: taskmaster.v1.TaskmasterService.CreateTag:input_type -> taskmaster.v1.CreateTagRequest
+	23,  // 67: taskmaster.v1.TaskmasterService.UpdateTag:input_type -> taskmaster.v1.UpdateTagRequest
+	25,  // 68: taskmaster.v1.TaskmasterService.DeleteTag:input_type -> taskmaster.v1.DeleteTagRequest
+	27,  // 69: taskmaster.v1.TaskmasterService.SetTagHidden:input_type -> taskmaster.v1.SetTagHiddenRequest
+	29,  // 70: taskmaster.v1.TaskmasterService.SetTagColor:input_type -> taskmaster.v1.SetTagColorRequest
+	31,  // 71: taskmaster.v1.TaskmasterService.SetTagNotify:input_type -> taskmaster.v1.SetTagNotifyRequest
+	34,  // 72: taskmaster.v1.TaskmasterService.ListShares:input_type -> taskmaster.v1.ListSharesRequest
+	36,  // 73: taskmaster.v1.TaskmasterService.ShareTag:input_type -> taskmaster.v1.ShareTagRequest
+	38,  // 74: taskmaster.v1.TaskmasterService.UpdateShare:input_type -> taskmaster.v1.UpdateShareRequest
+	40,  // 75: taskmaster.v1.TaskmasterService.RevokeShare:input_type -> taskmaster.v1.RevokeShareRequest
+	50,  // 76: taskmaster.v1.TaskmasterService.ListTasks:input_type -> taskmaster.v1.ListTasksRequest
+	52,  // 77: taskmaster.v1.TaskmasterService.GetTask:input_type -> taskmaster.v1.GetTaskRequest
+	54,  // 78: taskmaster.v1.TaskmasterService.CreateTask:input_type -> taskmaster.v1.CreateTaskRequest
+	56,  // 79: taskmaster.v1.TaskmasterService.UpdateTask:input_type -> taskmaster.v1.UpdateTaskRequest
+	58,  // 80: taskmaster.v1.TaskmasterService.ArchiveTask:input_type -> taskmaster.v1.ArchiveTaskRequest
+	60,  // 81: taskmaster.v1.TaskmasterService.UnarchiveTask:input_type -> taskmaster.v1.UnarchiveTaskRequest
+	62,  // 82: taskmaster.v1.TaskmasterService.DeleteTask:input_type -> taskmaster.v1.DeleteTaskRequest
+	64,  // 83: taskmaster.v1.TaskmasterService.AddTaskTag:input_type -> taskmaster.v1.AddTaskTagRequest
+	66,  // 84: taskmaster.v1.TaskmasterService.RemoveTaskTag:input_type -> taskmaster.v1.RemoveTaskTagRequest
+	70,  // 85: taskmaster.v1.TaskmasterService.Complete:input_type -> taskmaster.v1.CompleteRequest
+	71,  // 86: taskmaster.v1.TaskmasterService.Skip:input_type -> taskmaster.v1.SkipRequest
+	72,  // 87: taskmaster.v1.TaskmasterService.CheckItem:input_type -> taskmaster.v1.CheckItemRequest
+	73,  // 88: taskmaster.v1.TaskmasterService.UncheckItem:input_type -> taskmaster.v1.UncheckItemRequest
+	74,  // 89: taskmaster.v1.TaskmasterService.Defer:input_type -> taskmaster.v1.DeferRequest
+	75,  // 90: taskmaster.v1.TaskmasterService.ClearDeferral:input_type -> taskmaster.v1.ClearDeferralRequest
+	76,  // 91: taskmaster.v1.TaskmasterService.SetCycleSlot:input_type -> taskmaster.v1.SetCycleSlotRequest
+	77,  // 92: taskmaster.v1.TaskmasterService.Pause:input_type -> taskmaster.v1.PauseRequest
+	78,  // 93: taskmaster.v1.TaskmasterService.Resume:input_type -> taskmaster.v1.ResumeRequest
+	79,  // 94: taskmaster.v1.TaskmasterService.Undo:input_type -> taskmaster.v1.UndoRequest
+	81,  // 95: taskmaster.v1.TaskmasterService.ListEvents:input_type -> taskmaster.v1.ListEventsRequest
+	83,  // 96: taskmaster.v1.TaskmasterService.AddNote:input_type -> taskmaster.v1.AddNoteRequest
+	85,  // 97: taskmaster.v1.TaskmasterService.EditEvent:input_type -> taskmaster.v1.EditEventRequest
+	87,  // 98: taskmaster.v1.TaskmasterService.DeleteEvent:input_type -> taskmaster.v1.DeleteEventRequest
+	90,  // 99: taskmaster.v1.TaskmasterService.Upcoming:input_type -> taskmaster.v1.UpcomingRequest
+	7,   // 100: taskmaster.v1.TaskmasterService.GetMe:output_type -> taskmaster.v1.GetMeResponse
+	17,  // 101: taskmaster.v1.TaskmasterService.UpdateMe:output_type -> taskmaster.v1.UpdateMeResponse
+	10,  // 102: taskmaster.v1.TaskmasterService.GetPushConfig:output_type -> taskmaster.v1.GetPushConfigResponse
+	12,  // 103: taskmaster.v1.TaskmasterService.RegisterPush:output_type -> taskmaster.v1.RegisterPushResponse
+	14,  // 104: taskmaster.v1.TaskmasterService.UnregisterPush:output_type -> taskmaster.v1.UnregisterPushResponse
+	16,  // 105: taskmaster.v1.TaskmasterService.SendTestNotification:output_type -> taskmaster.v1.SendTestNotificationResponse
+	20,  // 106: taskmaster.v1.TaskmasterService.ListTags:output_type -> taskmaster.v1.ListTagsResponse
+	22,  // 107: taskmaster.v1.TaskmasterService.CreateTag:output_type -> taskmaster.v1.CreateTagResponse
+	24,  // 108: taskmaster.v1.TaskmasterService.UpdateTag:output_type -> taskmaster.v1.UpdateTagResponse
+	26,  // 109: taskmaster.v1.TaskmasterService.DeleteTag:output_type -> taskmaster.v1.DeleteTagResponse
+	28,  // 110: taskmaster.v1.TaskmasterService.SetTagHidden:output_type -> taskmaster.v1.SetTagHiddenResponse
+	30,  // 111: taskmaster.v1.TaskmasterService.SetTagColor:output_type -> taskmaster.v1.SetTagColorResponse
+	32,  // 112: taskmaster.v1.TaskmasterService.SetTagNotify:output_type -> taskmaster.v1.SetTagNotifyResponse
+	35,  // 113: taskmaster.v1.TaskmasterService.ListShares:output_type -> taskmaster.v1.ListSharesResponse
+	37,  // 114: taskmaster.v1.TaskmasterService.ShareTag:output_type -> taskmaster.v1.ShareTagResponse
+	39,  // 115: taskmaster.v1.TaskmasterService.UpdateShare:output_type -> taskmaster.v1.UpdateShareResponse
+	41,  // 116: taskmaster.v1.TaskmasterService.RevokeShare:output_type -> taskmaster.v1.RevokeShareResponse
+	51,  // 117: taskmaster.v1.TaskmasterService.ListTasks:output_type -> taskmaster.v1.ListTasksResponse
+	53,  // 118: taskmaster.v1.TaskmasterService.GetTask:output_type -> taskmaster.v1.GetTaskResponse
+	55,  // 119: taskmaster.v1.TaskmasterService.CreateTask:output_type -> taskmaster.v1.CreateTaskResponse
+	57,  // 120: taskmaster.v1.TaskmasterService.UpdateTask:output_type -> taskmaster.v1.UpdateTaskResponse
+	59,  // 121: taskmaster.v1.TaskmasterService.ArchiveTask:output_type -> taskmaster.v1.ArchiveTaskResponse
+	61,  // 122: taskmaster.v1.TaskmasterService.UnarchiveTask:output_type -> taskmaster.v1.UnarchiveTaskResponse
+	63,  // 123: taskmaster.v1.TaskmasterService.DeleteTask:output_type -> taskmaster.v1.DeleteTaskResponse
+	65,  // 124: taskmaster.v1.TaskmasterService.AddTaskTag:output_type -> taskmaster.v1.AddTaskTagResponse
+	67,  // 125: taskmaster.v1.TaskmasterService.RemoveTaskTag:output_type -> taskmaster.v1.RemoveTaskTagResponse
+	68,  // 126: taskmaster.v1.TaskmasterService.Complete:output_type -> taskmaster.v1.ActionResponse
+	68,  // 127: taskmaster.v1.TaskmasterService.Skip:output_type -> taskmaster.v1.ActionResponse
+	68,  // 128: taskmaster.v1.TaskmasterService.CheckItem:output_type -> taskmaster.v1.ActionResponse
+	68,  // 129: taskmaster.v1.TaskmasterService.UncheckItem:output_type -> taskmaster.v1.ActionResponse
+	68,  // 130: taskmaster.v1.TaskmasterService.Defer:output_type -> taskmaster.v1.ActionResponse
+	68,  // 131: taskmaster.v1.TaskmasterService.ClearDeferral:output_type -> taskmaster.v1.ActionResponse
+	68,  // 132: taskmaster.v1.TaskmasterService.SetCycleSlot:output_type -> taskmaster.v1.ActionResponse
+	68,  // 133: taskmaster.v1.TaskmasterService.Pause:output_type -> taskmaster.v1.ActionResponse
+	68,  // 134: taskmaster.v1.TaskmasterService.Resume:output_type -> taskmaster.v1.ActionResponse
+	68,  // 135: taskmaster.v1.TaskmasterService.Undo:output_type -> taskmaster.v1.ActionResponse
+	82,  // 136: taskmaster.v1.TaskmasterService.ListEvents:output_type -> taskmaster.v1.ListEventsResponse
+	84,  // 137: taskmaster.v1.TaskmasterService.AddNote:output_type -> taskmaster.v1.AddNoteResponse
+	86,  // 138: taskmaster.v1.TaskmasterService.EditEvent:output_type -> taskmaster.v1.EditEventResponse
+	88,  // 139: taskmaster.v1.TaskmasterService.DeleteEvent:output_type -> taskmaster.v1.DeleteEventResponse
+	91,  // 140: taskmaster.v1.TaskmasterService.Upcoming:output_type -> taskmaster.v1.UpcomingResponse
+	100, // [100:141] is the sub-list for method output_type
+	59,  // [59:100] is the sub-list for method input_type
+	59,  // [59:59] is the sub-list for extension type_name
+	59,  // [59:59] is the sub-list for extension extendee
+	0,   // [0:59] is the sub-list for field type_name
 }
 
 func init() { file_taskmaster_v1_taskmaster_proto_init() }

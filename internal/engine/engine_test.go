@@ -550,3 +550,27 @@ func TestFixedCarryOver(t *testing.T) {
 	bad.CarryOver = true
 	assert.Error(t, bad.Validate())
 }
+
+func TestSkipKeepsSchedule(t *testing.T) {
+	task := interval(6, Months)
+	s := task.Init(d("2026-09-01"), d("2026-10-01"))
+
+	// Skipped late: the next one is still six months after Oct 1.
+	got, ev, err := task.Skip(s, d("2026-10-20"))
+	require.NoError(t, err)
+	assert.Equal(t, d("2027-04-01"), got.Due)
+	assert.Equal(t, []string{"skipped 2026-10-20 (occ 2026-10-01)"}, summarize(ev))
+
+	// A deferral is undone by skipping: counts from the original date.
+	deferred, _, _ := task.Defer(s, d("2026-09-20"), d("2026-11-15"))
+	got, _, _ = task.Skip(deferred, d("2026-11-10"))
+	assert.Equal(t, d("2027-04-01"), got.Due)
+	assert.False(t, got.Deferred)
+
+	// Once tasks are closed ("won't do").
+	once := Task{Kind: KindOnce, Priority: Normal}
+	closed, ev, err := once.Skip(once.Init(d("2026-09-01"), d("2026-10-01")), d("2026-09-05"))
+	require.NoError(t, err)
+	assert.True(t, closed.Done)
+	assert.Equal(t, EventSkipped, ev[0].Kind)
+}

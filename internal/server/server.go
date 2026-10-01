@@ -385,7 +385,11 @@ func (h *Handler) Complete(ctx context.Context, req *connect.Request[pb.Complete
 
 func (h *Handler) Skip(ctx context.Context, req *connect.Request[pb.SkipRequest]) (*connect.Response[pb.ActionResponse], error) {
 	m := req.Msg
-	return actionResponse(h.svc.Skip(ctx, user(ctx), app.Action{TaskID: m.Id, Version: m.Version, Note: m.Note}))
+	off, err := offlineFrom(m.Offline)
+	if err != nil {
+		return nil, err
+	}
+	return actionResponse(h.svc.Skip(ctx, user(ctx), app.Action{TaskID: m.Id, Version: m.Version, Note: m.Note, Offline: off}))
 }
 
 func (h *Handler) CheckItem(ctx context.Context, req *connect.Request[pb.CheckItemRequest]) (*connect.Response[pb.ActionResponse], error) {

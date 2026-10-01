@@ -122,7 +122,7 @@ export async function clearCache() {
 
 export type QueuedAction = {
   id?: number;
-  kind: "complete" | "check" | "note";
+  kind: "complete" | "check" | "note" | "skip";
   taskId: string;
   taskTitle: string;
   itemId?: string;
@@ -211,6 +211,8 @@ function send(a: QueuedAction): Promise<unknown> {
       return api.checkItem({ id: a.taskId, itemId: a.itemId!, note: a.note ?? "", offline });
     case "note":
       return api.addNote({ taskId: a.taskId, note: a.note ?? "", date: a.date });
+    case "skip":
+      return api.skip({ id: a.taskId, note: a.note ?? "", offline });
   }
 }
 

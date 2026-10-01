@@ -483,10 +483,14 @@ message CompleteRequest {
   Offline offline = 6;
 }
 
+// "Not this time": records a skip and moves to the next occurrence without
+// changing the schedule (a once task is closed as "won't do").
 message SkipRequest {
   string id = 1;
   int64 version = 2;
   string note = 3;
+  // For queued offline skips (see CompleteRequest.offline).
+  Offline offline = 4;
 }
 
 // Checking the last item completes the task.

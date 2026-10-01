@@ -1,5 +1,5 @@
 import { useEffect, useState } from "preact/hooks";
-import { AccessLevel, api, EventKind, ListEventsResponseSchema, type Event, type Task } from "../api";
+import { AccessLevel, api, EventKind, ListEventsResponseSchema, ScheduleKind, type Event, type Task } from "../api";
 import { cached } from "../offline";
 import { formatDate, formatTimestamp } from "../dates";
 import { useSession } from "../session";
@@ -21,7 +21,8 @@ function describe(task: Task, e: Event, ref: string): string {
     case EventKind.MISSED:
       return e.checkedItemIds.length ? `Missed (partly done: ${e.checkedItemIds.map((i) => itemTitle(task, i)).join(", ")})` : "Missed";
     case EventKind.SKIPPED:
-      return e.merged ? "Skipped (merged into a deferral)" : withSlot("Skipped");
+      if (e.merged) return "Skipped (merged into a deferral)";
+      return task.schedule?.kind === ScheduleKind.ONCE ? "Won't do" : withSlot("Skipped");
     case EventKind.DEFERRED:
       return `Deferred from ${formatDate(e.from, ref)} to ${formatDate(e.to, ref)}`;
     case EventKind.DEFERRAL_CLEARED:

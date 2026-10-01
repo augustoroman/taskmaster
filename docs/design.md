@@ -80,6 +80,9 @@ a date on every completion, because backdating is unusual.
 - Rule: `every N {days|weeks|months|years}`.
 - On completion: `due = c + N`. Doing it early or late shifts all later dates.
 - It is never missed. It just becomes more overdue.
+- **Skip** ("not this time") moves to the next round without changing the schedule:
+  `due = occurrence + N`, where the occurrence is the scheduled date before any deferral. (Defer is
+  how you move the schedule.)
 - On creation, the user picks the first due date (default today).
 
 ### 4.2 Fixed: "on the calendar; if you miss it, skip it"
@@ -96,7 +99,7 @@ a date on every completion, because backdating is unusual.
 - Misses are recorded by a background sweep (hourly, because tasks are in different time zones)
   and also on read, so the stored state is never stale. Both are idempotent.
 - **Skip:** "we're not doing this one" records a `skipped` event and advances `due` exactly as a
-  completion would.
+  completion would. (For once tasks, skipping closes the task as "won't do".)
 - **Changing a miss to done:** see §4.8. It fixes the history only.
 - **"If it's missed: keep it until it's done"** (a per-task option, for things like monthly
   meds): nothing is recorded as missed; the date stays pending and overdue until it's done.

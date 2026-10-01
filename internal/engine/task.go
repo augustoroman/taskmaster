@@ -315,8 +315,11 @@ func (t Task) Complete(s State, today Date, opt CompleteOptions) (State, []Event
 	return t.advance(s, c, slot), events, nil
 }
 
-// Skip records that the current occurrence won't be done and moves on as if
-// it had been completed today. A cycle moves to its next slot.
+// Skip records that the current occurrence won't be done ("not this time")
+// and moves on without changing the schedule: an interval task's next due
+// date counts from when this one was scheduled (ignoring any deferral), not
+// from today; other kinds move on as if it were done today (a cycle to its
+// next slot). A once task is closed.
 func (t Task) Skip(s State, today Date) (State, []Event, error) {
 	s, events, err := t.actionable(s, today)
 	if err != nil {
@@ -324,6 +327,9 @@ func (t Task) Skip(s State, today Date) (State, []Event, error) {
 	}
 	events = append(events, Event{Kind: EventSkipped, Date: today, Occurrence: s.Occurrence(), Slot: s.Slot})
 	events = append(events, t.mergedSkips(s)...)
+	if t.Kind == KindInterval {
+		return t.newOccurrence(s, t.Interval.After(s.Occurrence())), events, nil
+	}
 	return t.advance(s, today, s.Slot), events, nil
 }
 
