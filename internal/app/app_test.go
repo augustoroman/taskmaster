@@ -809,6 +809,7 @@ func TestSkip(t *testing.T) {
 	assert.Equal(t, engine.EventSkipped, res.Events[0].Kind)
 	assert.Equal(t, "out of town", res.Events[0].Note)
 	assert.True(t, res.Task.LastDone.IsZero(), "skipping isn't doing")
+	assert.Equal(t, d("2026-10-09"), res.Task.LastSkipped)
 
 	// A once task is closed as "won't do".
 	reg, err := f.svc.CreateTask(f.ctx, f.admin, TaskInput{Title: "Register for the race", Kind: engine.KindOnce}, nil, d("2026-10-15"))

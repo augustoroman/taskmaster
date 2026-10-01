@@ -347,6 +347,8 @@ message Task {
   // The due date can be set with UpdateTask.due: an interval or once task
   // with no history yet (never done, missed, skipped, deferred or paused).
   bool due_editable = 22;
+  // The date it was last skipped ("not this time" / "won't do"), if ever.
+  string last_skipped = 23;
 }
 
 // The editable fields of a task.

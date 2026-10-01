@@ -44,6 +44,15 @@ function describe(task: Task, e: Event, ref: string): string {
 
 const PAGE = 30;
 
+/** A gentle green check for done, red cross for skipped or missed. */
+function EventIcon({ kind, merged }: { kind: EventKind; merged: boolean }) {
+  if (kind === EventKind.DONE) return <span class="event-icon done" aria-hidden="true">✓</span>;
+  if (kind === EventKind.MISSED || (kind === EventKind.SKIPPED && !merged)) {
+    return <span class="event-icon skipped" aria-hidden="true">✕</span>;
+  }
+  return <span class="event-icon" aria-hidden="true" />;
+}
+
 export function History({ task, onTaskChanged }: { task: Task; onTaskChanged: (t: Task) => void }) {
   const [events, setEvents] = useState<Event[]>([]);
   const [next, setNext] = useState("");
@@ -153,6 +162,7 @@ function EventItem({
     <li class={`event event-${EventKind[e.kind]?.toLowerCase()}`}>
       <div class="event-head">
         <span class="event-date">{formatDate(e.date, ref)}</span>
+        <EventIcon kind={e.kind} merged={e.merged} />
         <span class="event-what">{describe(task, e, ref)}</span>
         <span class="muted small">
           {e.user ? e.user.name || e.user.email : "automatic"}

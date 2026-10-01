@@ -156,12 +156,22 @@ func (s scanner) Scan(dest ...any) error { return s(dest...) }
 
 // LastDoneDates returns the latest done date of each task that has one.
 func (tx *Tx) LastDoneDates(taskIDs []string) (map[string]engine.Date, error) {
+	return tx.lastDates(taskIDs, engine.EventDone, "")
+}
+
+// LastSkippedDates returns the latest date each task was skipped by someone
+// (not occurrences merged into a deferral).
+func (tx *Tx) LastSkippedDates(taskIDs []string) (map[string]engine.Date, error) {
+	return tx.lastDates(taskIDs, engine.EventSkipped, ` AND COALESCE(json_extract(data, '$.merged'), 0) = 0`)
+}
+
+func (tx *Tx) lastDates(taskIDs []string, kind engine.EventKind, extra string) (map[string]engine.Date, error) {
 	out := map[string]engine.Date{}
 	if len(taskIDs) == 0 {
 		return out, nil
 	}
-	args := append(anys(taskIDs), engine.EventDone)
-	err := tx.each(`SELECT task_id, MAX(date) FROM events WHERE task_id IN (`+placeholders(len(taskIDs))+`) AND kind = ? GROUP BY task_id`, args,
+	args := append(anys(taskIDs), kind)
+	err := tx.each(`SELECT task_id, MAX(date) FROM events WHERE task_id IN (`+placeholders(len(taskIDs))+`) AND kind = ?`+extra+` GROUP BY task_id`, args,
 		func(scan func(...any) error) error {
 			var id, date string
 			if err := scan(&id, &date); err != nil {

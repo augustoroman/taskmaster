@@ -176,8 +176,10 @@ type TaskView struct {
 	VisibleTagIDs []string
 	// Users has the creator and anyone who checked a checklist item.
 	Users map[string]*store.User
-	// LastDone is the date of the latest completion, if any.
-	LastDone engine.Date
+	// LastDone is the date of the latest completion, if any; LastSkipped of
+	// the latest skip.
+	LastDone    engine.Date
+	LastSkipped engine.Date
 	// DueEditable means the due date can still be set directly (see
 	// dueEditable).
 	DueEditable bool
@@ -310,6 +312,10 @@ func (s *Service) finish(tx *store.Tx, u *store.User, views ...*TaskView) error 
 	if err != nil {
 		return err
 	}
+	lastSkipped, err := tx.LastSkippedDates(taskIDs)
+	if err != nil {
+		return err
+	}
 	history, err := tx.TasksWithHistory(taskIDs)
 	if err != nil {
 		return err
@@ -317,6 +323,7 @@ func (s *Service) finish(tx *store.Tx, u *store.User, views ...*TaskView) error 
 	for _, v := range views {
 		v.Users = users
 		v.LastDone = lastDone[v.ID]
+		v.LastSkipped = lastSkipped[v.ID]
 		v.DueEditable = dueEditable(v.Task, history[v.ID]) == nil
 	}
 	return nil

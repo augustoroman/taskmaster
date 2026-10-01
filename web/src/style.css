@@ -11,6 +11,7 @@
   --overdue: #b3261e;
   --today: #9a5b00;
   --error-bg: #fdecea;
+  --danger-soft: #f6dedb;
   --radius: 8px;
   color-scheme: light;
 }
@@ -29,6 +30,7 @@
     --overdue: #f2877f;
     --today: #e7b15a;
     --error-bg: #3a1f1d;
+    --danger-soft: #3f2624;
     color-scheme: dark;
   }
 }
@@ -537,6 +539,31 @@ h2.group-1 {
   color: var(--accent-text);
 }
 
+.skip-chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.event-icon {
+  display: inline-block;
+  width: 1rem;
+  text-align: center;
+  font-weight: 700;
+}
+
+.event-icon.done {
+  color: var(--accent);
+}
+
+.event-icon.skipped {
+  color: var(--danger);
+  opacity: 0.75;
+}
+
 .recent .task-list {
   border-color: var(--accent);
 }
@@ -661,7 +688,7 @@ h2.group-1 {
 }
 
 .event-body {
-  margin: 0.25rem 0 0 7.25rem;
+  margin: 0.25rem 0 0 9rem;
   font-size: 0.95rem;
 }
 

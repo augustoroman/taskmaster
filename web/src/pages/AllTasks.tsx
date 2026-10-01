@@ -3,7 +3,7 @@ import { api, ListTasksResponseSchema, type Task } from "../api";
 import { cached, useOnSynced } from "../offline";
 import { ErrorBanner, useAutoRefresh, useRunner } from "../components/common";
 import { TagFilter, useTagFilter } from "../components/TagFilter";
-import { doneRecently, dueSoon, RECENT_DAYS, TaskRow } from "../components/TaskRow";
+import { doneRecently, dueSoon, RECENT_DAYS, recentActivity, TaskRow } from "../components/TaskRow";
 import { useSession } from "../session";
 
 export function AllTasks() {
@@ -38,13 +38,13 @@ export function AllTasks() {
   const soon = shown.filter((t) => dueSoon(t, today));
   const recent = shown
     .filter((t) => !dueSoon(t, today) && doneRecently(t, today))
-    .sort((a, b) => b.lastDone.localeCompare(a.lastDone));
+    .sort((a, b) => (b.lastDone > b.lastSkipped ? b.lastDone : b.lastSkipped).localeCompare(a.lastDone > a.lastSkipped ? a.lastDone : a.lastSkipped));
   const later = shown
     .filter((t) => !dueSoon(t, today) && !doneRecently(t, today))
     .sort((a, b) => Number(!!a.state?.paused) - Number(!!b.state?.paused));
   const sections: [string, typeof shown, boolean][] = [
     ["Coming up", soon, false],
-    ["Recently done", recent, true],
+    [recent.some((t) => recentActivity(t, today)?.kind === "skipped") ? "Recently done or skipped" : "Recently done", recent, true],
     ["Later", later, false],
   ];
 
@@ -68,7 +68,7 @@ export function AllTasks() {
           ([title, list, isRecent]) =>
             list.length > 0 && (
               <section key={title} class={isRecent ? "recent" : ""}>
-                <h2 class="group" title={isRecent ? `Done in the last ${RECENT_DAYS} days and not due again soon` : undefined}>
+                <h2 class="group" title={isRecent ? `Done or skipped in the last ${RECENT_DAYS} days, and not due again soon` : undefined}>
                   {title}
                 </h2>
                 <ul class="task-list">

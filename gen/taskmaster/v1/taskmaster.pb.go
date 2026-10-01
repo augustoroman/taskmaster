@@ -2600,7 +2600,9 @@ type Task struct {
 	LastDone string `protobuf:"bytes,21,opt,name=last_done,json=lastDone,proto3" json:"last_done,omitempty"`
 	// The due date can be set with UpdateTask.due: an interval or once task
 	// with no history yet (never done, missed, skipped, deferred or paused).
-	DueEditable   bool `protobuf:"varint,22,opt,name=due_editable,json=dueEditable,proto3" json:"due_editable,omitempty"`
+	DueEditable bool `protobuf:"varint,22,opt,name=due_editable,json=dueEditable,proto3" json:"due_editable,omitempty"`
+	// The date it was last skipped ("not this time" / "won't do"), if ever.
+	LastSkipped   string `protobuf:"bytes,23,opt,name=last_skipped,json=lastSkipped,proto3" json:"last_skipped,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2787,6 +2789,13 @@ func (x *Task) GetDueEditable() bool {
 		return x.DueEditable
 	}
 	return false
+}
+
+func (x *Task) GetLastSkipped() string {
+	if x != nil {
+		return x.LastSkipped
+	}
+	return ""
 }
 
 // The editable fields of a task.
@@ -5494,7 +5503,7 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\x06checks\x18\b \x03(\v2\x14.taskmaster.v1.CheckR\x06checks\"6\n" +
 	"\tProjected\x12\x10\n" +
 	"\x03due\x18\x01 \x01(\tR\x03due\x12\x17\n" +
-	"\aslot_id\x18\x02 \x01(\tR\x06slotId\"\xe6\x06\n" +
+	"\aslot_id\x18\x02 \x01(\tR\x06slotId\"\x89\a\n" +
 	"\x04Task\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
@@ -5521,7 +5530,8 @@ const file_taskmaster_v1_taskmaster_proto_rawDesc = "" +
 	"\x13effective_lead_days\x18\x13 \x01(\x05R\x11effectiveLeadDays\x126\n" +
 	"\tprojected\x18\x14 \x03(\v2\x18.taskmaster.v1.ProjectedR\tprojected\x12\x1b\n" +
 	"\tlast_done\x18\x15 \x01(\tR\blastDone\x12!\n" +
-	"\fdue_editable\x18\x16 \x01(\bR\vdueEditable\"\xb5\x02\n" +
+	"\fdue_editable\x18\x16 \x01(\bR\vdueEditable\x12!\n" +
+	"\flast_skipped\x18\x17 \x01(\tR\vlastSkipped\"\xb5\x02\n" +
 	"\tTaskInput\x12\x14\n" +
 	"\x05title\x18\x01 \x01(\tR\x05title\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1a\n" +

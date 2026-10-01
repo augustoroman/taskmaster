@@ -121,6 +121,7 @@ func taskPB(v *app.TaskView) *pb.Task {
 		PeriodDays:        v.Def.PeriodDays(v.Today),
 		EffectiveLeadDays: int32(v.Def.LeadDays(v.Today)),
 		LastDone:          v.LastDone.String(),
+		LastSkipped:       v.LastSkipped.String(),
 		DueEditable:       v.DueEditable,
 		State: &pb.TaskState{
 			Due:           v.State.Due.String(),

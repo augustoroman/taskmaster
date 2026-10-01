@@ -50,12 +50,33 @@ export function wontDo(task: Task): boolean {
   return !!task.state?.done && task.schedule?.kind === ScheduleKind.ONCE && !task.lastDone;
 }
 
-/** How many days a completion counts as "recent". */
+/** How many days a completion or skip counts as "recent". */
 export const RECENT_DAYS = 3;
 
-/** Whether the task was done within the last RECENT_DAYS days. */
+/** The task's latest completion or skip, if it was within RECENT_DAYS. */
+export function recentActivity(task: Task, today: string): { kind: "done" | "skipped"; date: string } | null {
+  const latest =
+    task.lastSkipped > task.lastDone ? { kind: "skipped" as const, date: task.lastSkipped } : { kind: "done" as const, date: task.lastDone };
+  return latest.date && daysBetween(latest.date, today) < RECENT_DAYS ? latest : null;
+}
+
+/** Whether the task was done or skipped within the last RECENT_DAYS days. */
 export function doneRecently(task: Task, today: string): boolean {
-  return !!task.lastDone && daysBetween(task.lastDone, today) < RECENT_DAYS;
+  return recentActivity(task, today) !== null;
+}
+
+/** "✓ done yesterday" or "✕ skipped today" for a task dealt with recently. */
+export function ActivityChip({ task }: { task: Task }) {
+  const session = useSession();
+  const today = session.today();
+  const recent = recentActivity(task, today);
+  if (!recent) return null;
+  const label = recent.kind === "done" ? "done" : wontDo(task) ? "won't do" : "skipped";
+  return (
+    <span class={recent.kind === "done" ? "done-chip" : "skip-chip"} title={`${label} ${formatDate(recent.date, today)}`}>
+      {recent.kind === "done" ? "✓" : "✕"} {label} {wontDo(task) ? "" : relativePast(recent.date, today)}
+    </span>
+  );
 }
 
 /** Whether the task's next due date is within its lead time (it would be in Upcoming). */
@@ -89,6 +110,7 @@ export function TaskRow({
   const pending = queuedFor(task.id, connectivity).find((a) => a.kind === "complete" || a.kind === "skip");
   const quickDone = canDo(task) && !st.done && !st.paused && !pending && !recent && activeChecklist(task).length === 0;
   const justDone = doneRecently(task, session.today());
+  const oldDone = showLastDone && task.lastDone && !justDone;
 
   async function done(e: Event) {
     e.preventDefault();
@@ -123,9 +145,10 @@ export function TaskRow({
           {task.archived && <span class="badge">archived</span>}
           {pending && <span class="badge">{pending.kind === "skip" ? "skipped" : "done"} · waiting to sync</span>}
           <TagChips ids={task.tagIds} />
-          {task.lastDone && (justDone || showLastDone) && (
-            <span class={justDone ? "done-chip" : "muted small"} title={`Last done ${formatDate(task.lastDone, session.today())}`}>
-              {justDone && "✓ "}done {relativePast(task.lastDone, session.today())}
+          {justDone && <ActivityChip task={task} />}
+          {oldDone && (
+            <span class="muted small" title={`Last done ${formatDate(task.lastDone, session.today())}`}>
+              done {relativePast(task.lastDone, session.today())}
             </span>
           )}
         </span>
