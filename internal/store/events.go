@@ -214,6 +214,36 @@ func (tx *Tx) FindEvent(taskID string, kind engine.EventKind, occurrence engine.
 	return e, err
 }
 
+// HasEventsAfter reports whether anything other than a note was recorded
+// for the task after the given time.
+func (tx *Tx) HasEventsAfter(taskID string, after time.Time) (bool, error) {
+	var n int
+	err := tx.queryRow(`SELECT COUNT(*) FROM events WHERE task_id = ? AND created_at > ? AND kind != ?`,
+		taskID, ts(after), EventNote).Scan(&n)
+	return n > 0, err
+}
+
+// LatestEventOf returns the latest event for the occurrence with any of the
+// given kinds that was recorded before `before`, or nil.
+func (tx *Tx) LatestEventOf(taskID string, occurrence engine.Date, before time.Time, kinds ...engine.EventKind) (*Event, error) {
+	args := []any{taskID, occurrence.String(), ts(before)}
+	args = append(args, anys(kinds)...)
+	e, err := scanEvent(tx.queryRow(`SELECT `+eventCols+` FROM events WHERE task_id = ? AND occurrence = ? AND created_at < ?
+		AND kind IN (`+placeholders(len(kinds))+`) ORDER BY created_at DESC LIMIT 1`, args...))
+	if err == ErrNotFound {
+		return nil, nil
+	}
+	return e, err
+}
+
+// DeleteMergedSkips deletes the "merged into a deferral" skips recorded
+// together with an action at the given time.
+func (tx *Tx) DeleteMergedSkips(taskID string, at time.Time) error {
+	_, err := tx.exec(`DELETE FROM events WHERE task_id = ? AND created_at = ? AND kind = ?
+		AND COALESCE(json_extract(data, '$.merged'), 0) = 1`, taskID, ts(at), engine.EventSkipped)
+	return err
+}
+
 // LastDone returns the date of the task's latest done event, or zero.
 func (tx *Tx) LastDone(taskID string) (engine.Date, error) {
 	var date string

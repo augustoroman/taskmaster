@@ -179,7 +179,11 @@ a date on every completion, because backdating is unusual.
 - **Interval tasks:** after an edit, `due` is recalculated from the latest `done` event. So "done
   last Tuesday" moves the next due date earlier to match. An active deferral set after that event
   stays in place.
-- **Fixed and cycle tasks:** history edits don't change the current `due` or slot. For fixed tasks,
+- **Deleting the latest completion or skip** (with nothing recorded since, and no items checked on
+  the new occurrence) puts the task back as it was: the same occurrence is pending again, with its
+  deferral, its checked items and, for a cycle, the slot that was done. Otherwise only the entry
+  is removed.
+- **Fixed and cycle tasks:** other history edits don't change the current `due` or slot. For fixed tasks,
   doing one early never moves the schedule anyway. For a cycle, moving a completion earlier only
   matters if it moves across a rule date, which is rare. For those cases, change the state directly
   by deferring or setting the slot.

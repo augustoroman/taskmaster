@@ -196,6 +196,12 @@ function EventItem({
           </label>
           <textarea value={note} placeholder="Note" rows={2} onInput={(ev) => setNote(ev.currentTarget.value)} />
           <p class="muted small">Recorded {formatTimestamp(e.createdAt)}</p>
+          {(e.kind === EventKind.DONE || (e.kind === EventKind.SKIPPED && !e.merged)) && (
+            <p class="muted small">
+              Deleting the latest {e.kind === EventKind.DONE ? "completion" : "skip"} puts the task back the way it was before it, if
+              nothing else has happened since.
+            </p>
+          )}
           <div class="button-row">
             <button class="primary" type="submit" disabled={busy}>
               Save

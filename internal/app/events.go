@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/augustoroman/taskmaster/internal/engine"
@@ -144,7 +145,13 @@ func (s *Service) DeleteEvent(ctx context.Context, u *store.User, id string) (*T
 		if err := tx.DeleteEvent(id); err != nil {
 			return err
 		}
-		if ev.Kind == engine.EventDone {
+		reverted := false
+		if ev.Kind == engine.EventDone || (ev.Kind == engine.EventSkipped && !ev.Data.Merged) {
+			if reverted, err = s.revert(tx, u, v, ev); err != nil {
+				return err
+			}
+		}
+		if !reverted && ev.Kind == engine.EventDone {
 			if err := s.recompute(tx, v); err != nil {
 				return err
 			}
@@ -153,6 +160,61 @@ func (s *Service) DeleteEvent(ctx context.Context, u *store.User, id string) (*T
 		return s.finish(tx, u, v)
 	})
 	return taskView, conflict(err)
+}
+
+// revert puts a task back to how it was before ev, a completion or skip
+// being deleted, if nothing else has happened to the task since: the same
+// occurrence is pending again (with its deferral, its checked items and, for
+// a cycle, the slot that was done). It reports whether it did.
+func (s *Service) revert(tx *store.Tx, u *store.User, v *TaskView, ev *store.Event) (bool, error) {
+	// Checked items on the new occurrence aren't events, but mean it has been
+	// worked on since.
+	if !v.ArchivedAt.IsZero() || v.State.Paused || len(v.State.Checks) > 0 {
+		return false, nil
+	}
+	later, err := tx.HasEventsAfter(v.ID, ev.CreatedAt)
+	if err != nil || later {
+		return false, err
+	}
+	occ := ev.Occurrence
+	st := engine.State{Due: occ, Slot: v.State.Slot}
+	if v.Kind == engine.KindCycle && slices.Contains(v.Def.Slots, engine.SlotID(ev.SlotID)) {
+		st.Slot = engine.SlotID(ev.SlotID)
+	}
+	// Restore the occurrence's deferral, unless it had been cleared.
+	d, err := tx.LatestEventOf(v.ID, occ, ev.CreatedAt, engine.EventDeferred, engine.EventDeferralCleared)
+	if err != nil {
+		return false, err
+	}
+	if d != nil && d.Kind == engine.EventDeferred && !d.Data.To.IsZero() {
+		st.Deferred, st.DeferredFrom, st.Due = true, occ, d.Data.To
+	}
+	// Restore the checklist items that had been checked.
+	v.CheckedBy = nil
+	for _, item := range ev.Data.Checked {
+		if !slices.Contains(v.Def.Checklist, engine.ItemID(item)) {
+			continue
+		}
+		if st.Checks == nil {
+			st.Checks, v.CheckedBy = map[engine.ItemID]engine.Date{}, map[engine.ItemID]string{}
+		}
+		st.Checks[engine.ItemID(item)] = ev.Date
+		v.CheckedBy[engine.ItemID(item)] = ev.UserID
+	}
+	if err := tx.DeleteMergedSkips(v.ID, ev.CreatedAt); err != nil {
+		return false, err
+	}
+	v.State = st
+	syncCheckedBy(v.Task, u.ID)
+	v.UpdatedAt = s.now()
+	if err := tx.UpdateTask(v.Task); err != nil {
+		return false, err
+	}
+	// The restored date may have passed (e.g. a fixed task now missed).
+	if _, err := s.catchup(tx, v.Task); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // loadEvent loads an event and its task, checking that u may edit it.

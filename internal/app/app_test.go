@@ -286,10 +286,10 @@ func TestBackdateCompletion(t *testing.T) {
 	_, _, err = f.svc.EditEvent(f.ctx, f.admin, res.Events[0].ID, EventEdit{Date: &future})
 	assert.Error(t, err)
 
-	// Deleting the only completion leaves the due date alone.
+	// Deleting the completion puts the task back as it was: due Oct 1.
 	tv, err = f.svc.DeleteEvent(f.ctx, f.admin, res.Events[0].ID)
 	require.NoError(t, err)
-	assert.Equal(t, d("2027-01-06"), tv.State.Due)
+	assert.Equal(t, d("2026-10-01"), tv.State.Due)
 }
 
 func TestEditEventPermissions(t *testing.T) {
@@ -821,4 +821,93 @@ func TestSkip(t *testing.T) {
 	for _, v := range list {
 		assert.NotEqual(t, reg.ID, v.ID, "closed tasks leave the active list")
 	}
+}
+
+func TestDeleteCompletionReverts(t *testing.T) {
+	// The reported bug: a weekly Saturday rotation, carried over from a
+	// deferral, done mid-week; the completion is deleted and redone with the
+	// right slot. The next one should be the coming Saturday, not the one after.
+	f := newFixture(t)
+	f.now = time.Date(2026, 10, 10, 16, 0, 0, 0, time.UTC) // Sat Oct 10
+	chores := TaskInput{
+		Title: "Cleaning", Kind: engine.KindCycle, RRule: "FREQ=WEEKLY;BYDAY=SA", RRuleStart: d("2026-01-03"),
+		Slots: []store.Slot{{Title: "Office"}, {Title: "Piano room"}, {Title: "Bedroom"}, {Title: "Bathroom"}},
+	}
+	task := f.task(f.admin, chores)
+	office, bedroom, bathroom := task.Slots[0].ID, task.Slots[2].ID, task.Slots[3].ID
+	_, err := f.svc.Defer(f.ctx, f.admin, Action{TaskID: task.ID}, d("2026-10-17"))
+	require.NoError(t, err)
+
+	f.advance(17) // Tue Oct 27: overdue since the 17th
+	res, err := f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID}, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-10-31"), res.Task.State.Due)
+	wrong := res.Events[0]
+	assert.Equal(t, office, wrong.SlotID, "oops: the wrong slot")
+
+	f.advance(1) // Wed Oct 28: delete it, set the right slot, redo.
+	tv, err := f.svc.DeleteEvent(f.ctx, f.admin, wrong.ID)
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-10-17"), tv.State.Due, "back to the deferred occurrence")
+	assert.True(t, tv.State.Deferred)
+	assert.Equal(t, engine.SlotID(office), tv.State.Slot)
+	_, err = f.svc.SetCycleSlot(f.ctx, f.admin, Action{TaskID: task.ID}, bedroom)
+	require.NoError(t, err)
+	res, err = f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID}, "", false)
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-10-31"), res.Task.State.Due)
+	assert.Equal(t, engine.SlotID(bathroom), res.Task.State.Slot)
+}
+
+func TestDeleteCompletionRevertsOtherKinds(t *testing.T) {
+	f := newFixture(t)
+	// Interval: deleting the only completion puts the due date back.
+	in := filter
+	in.Checklist = []store.ChecklistItem{{Title: "a"}, {Title: "b"}}
+	task, err := f.svc.CreateTask(f.ctx, f.admin, in, nil, d("2026-10-05"))
+	require.NoError(t, err)
+	res, err := f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID}, "", true)
+	require.NoError(t, err)
+	_, err = f.svc.CheckItem(f.ctx, f.admin, Action{TaskID: task.ID}, task.Checklist[0].ID)
+	require.NoError(t, err)
+	// Something happened since (a check): no revert.
+	tv, err := f.svc.DeleteEvent(f.ctx, f.admin, res.Events[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, d("2027-01-01"), tv.State.Due, "unchanged: something happened since")
+
+	// Fixed: deleting a skip puts the occurrence back; once it has passed, it's missed.
+	tr := f.task(f.admin, trash)
+	res, err = f.svc.Skip(f.ctx, f.admin, Action{TaskID: tr.ID})
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-10-13"), res.Task.State.Due)
+	tv, err = f.svc.DeleteEvent(f.ctx, f.admin, res.Events[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-10-06"), tv.State.Due)
+
+	// Once: deleting the completion reopens it.
+	once, err := f.svc.CreateTask(f.ctx, f.admin, TaskInput{Title: "Fix gate", Kind: engine.KindOnce}, nil, d("2026-10-09"))
+	require.NoError(t, err)
+	res, err = f.svc.Complete(f.ctx, f.admin, Action{TaskID: once.ID}, "", false)
+	require.NoError(t, err)
+	tv, err = f.svc.DeleteEvent(f.ctx, f.admin, res.Events[0].ID)
+	require.NoError(t, err)
+	assert.False(t, tv.State.Done)
+	assert.Equal(t, d("2026-10-09"), tv.State.Due)
+}
+
+func TestDeleteCompletionRestoresChecks(t *testing.T) {
+	f := newFixture(t)
+	in := filter
+	in.Checklist = []store.ChecklistItem{{Title: "a"}, {Title: "b"}}
+	task, err := f.svc.CreateTask(f.ctx, f.admin, in, nil, d("2026-10-05"))
+	require.NoError(t, err)
+	_, err = f.svc.CheckItem(f.ctx, f.admin, Action{TaskID: task.ID}, task.Checklist[0].ID)
+	require.NoError(t, err)
+	res, err := f.svc.Complete(f.ctx, f.admin, Action{TaskID: task.ID}, "", true)
+	require.NoError(t, err)
+	tv, err := f.svc.DeleteEvent(f.ctx, f.admin, res.Events[0].ID)
+	require.NoError(t, err)
+	assert.Equal(t, d("2026-10-05"), tv.State.Due)
+	assert.Len(t, tv.State.Checks, 1)
+	assert.Equal(t, f.admin.ID, tv.CheckedBy[engine.ItemID(task.Checklist[0].ID)])
 }
